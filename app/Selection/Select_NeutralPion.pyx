@@ -1,0 +1,197 @@
+import numpy as np 
+import math as math
+import lib.utility.Geo_Utils.axisfit as axfi
+import lib.utility.Geo_Utils.detector as detector
+import lib.SParams.selpizero as selpz
+
+
+
+
+def CorrelatedObjects( dataset,idx_holder,labels):
+    keptpairs = []
+    if len(idx_holder) ==0:
+        return keptpairs
+    if len(idx_holder)==1:
+        keptpairs = idx_holder
+        return keptpairs
+
+    for a in range(len(idx_holder)):
+        shrA = axfi.weightshowerfit(dataset,idx_holder[a])
+        EA = selpz.corrected_energy(dataset,idx_holder[a])
+        ChargeA = selpz.totcharge(dataset,idx_holder[a])
+        N_sptA = len(idx_holder[a])
+        #print ' new pair '
+        for b in range(a+1, len(idx_holder)):
+            shrB = axfi.weightshowerfit(dataset,idx_holder[b])
+            EB = selpz.corrected_energy(dataset,idx_holder[b])
+            ChargeB = selpz.totcharge(dataset,idx_holder[b])
+            N_sptB = len(idx_holder[b])
+            vertex = selpz.findvtx(shrA,shrB)
+            IP = selpz.findIP(shrA,shrB)
+        #    print 'VERTEX ', str(vertex)
+         #   print 'IP ', str(IP)
+            SP_a = selpz.findRoughShowerStart(dataset,idx_holder[a],vertex)
+            #print 'SP A : ', str(SP_a)
+            radL_a = selpz.findconversionlength(vertex,SP_a)
+            SP_b = selpz.findRoughShowerStart(dataset,idx_holder[b],vertex)
+            #print 'SP B : ', str(SP_b)
+            radL_b = selpz.findconversionlength(vertex,SP_b)
+         #   print 'radL A', str(radL_a)
+         #   print 'radL B', str(radL_b)
+            angle = selpz.openingangle(shrA,shrB,vertex)
+	    # If we pass the cuts.... keep this pair
+
+
+	    # crap cut for fun
+            if IP>20: 
+               continue
+            if angle<0.2: 
+                continue
+            if angle>2.94: 
+                continue
+            if radL_a>50 and radL_b>50: 
+                continue
+            keptpairs.append(a)
+            keptpairs.append(b)
+
+    # Clean up kept pairs
+    retpairs = list(set(keptpairs))
+    # make the output holder
+    ret_holder = [ idx_holder[x] for x in retpairs]
+    return ret_holder
+
+
+def CorrelatedObjectsROI( dataset,idx_holder,labels):
+    # Retun a list that holds the ROI info [  [ROI].... ]
+    # Each ROI :  [ vertex[x,y,z], shrAholderidx , ShrBholderidx ]
+
+    preROI_list = []
+    if len(idx_holder) ==0:
+        return preROI_list 
+    # it could be a large shower.... so fill here eventually
+    if len(idx_holder)==1:
+        keptpairs = idx_holder
+        return preROI_list
+
+    for a in range(len(idx_holder)):
+        shrA = axfi.weightshowerfit(dataset,idx_holder[a])
+        #EA = selpz.corrected_energy(dataset,idx_holder[a])
+        ChargeA = selpz.totcharge(dataset,idx_holder[a])
+        #N_sptA = len(idx_holder[a])
+        #print ' new pair '
+        for b in range(a+1, len(idx_holder)):
+            shrB = axfi.weightshowerfit(dataset,idx_holder[b])
+            #EB = selpz.corrected_energy(dataset,idx_holder[b])
+            ChargeB = selpz.totcharge(dataset,idx_holder[b])
+            #N_sptB = len(idx_holder[b])
+            vertex = selpz.findvtx(shrA,shrB)
+            IP = selpz.findIP(shrA,shrB)
+        #    print 'VERTEX ', str(vertex)
+         #   print 'IP ', str(IP)
+            SP_a = selpz.findRoughShowerStart(dataset,idx_holder[a],vertex)
+            #print 'SP A : ', str(SP_a)
+            radL_a = selpz.findconversionlength(vertex,SP_a)
+            SP_b = selpz.findRoughShowerStart(dataset,idx_holder[b],vertex)
+            #print 'SP B : ', str(SP_b)
+            radL_b = selpz.findconversionlength(vertex,SP_b)
+         #   print 'radL A', str(radL_a)
+         #   print 'radL B', str(radL_b)
+            angle = selpz.openingangle(shrA,shrB,vertex)
+	    # If we pass the cuts.... keep this pair
+
+
+            passed = perform_first_cut_type_pair(vertex,IP,radL_a, radL_b, ChargeA, ChargeB, angle)
+            if passed:
+		# make the ROI
+                temp_roi = [ vertex , a, b ]
+                preROI_list.append(temp_roi)
+
+    return preROI_list 
+
+    '''
+    # Second pass cuts 
+    preROI_list2 = []
+    if len(preROI_list) >1:
+        for pair in preROI_list:
+            ChargeA = selpz.totcharge(dataset,idx_holder[pair[1]])
+            ChargeB = selpz.totcharge(dataset,idx_holder[pair[2]])
+            shrA = axfi.weightshowerfit(dataset,idx_holder[pair[1]])
+            shrB = axfi.weightshowerfit(dataset,idx_holder[pair[2]])
+            vertex = selpz.findvtx(shrA,shrB)
+            IP = selpz.findIP(shrA,shrB)
+            angle = selpz.openingangle(shrA,shrB,vertex)
+            # If this passes second cuts
+            passed2 = perform_second_cut_type_pair(IP,radL_a, radL_b, ChargeA, ChargeB, angle)
+            if passed2:
+	        # Put the ROI back
+                preROI_list2.append(pair)
+	return preROI_list2
+    else:
+        return preROI_list 
+    '''
+
+xlo = detector.GetX_Bounds()[0]
+xhi = detector.GetX_Bounds()[1]
+ylo = detector.GetY_Bounds()[0]
+yhi = detector.GetY_Bounds()[1]
+zlo = detector.GetZ_Bounds()[0]
+zhi = detector.GetZ_Bounds()[1]
+
+
+def perform_first_cut_type_pair(vertex,IP,RadL_A, RadL_B, chargeA, chargeB, angle):
+    #Hardcode cuts
+    IP_cut = 35
+    angle_cut_lo = 0.6
+    angle_cut_hi = 2.5
+    rad_max = 50
+    rad_sum_max = 70
+    charge_sum_min = 1000000
+    charge_min = 200000
+    
+    # Cut on vertex
+    #if vertex[2]< 400:
+    if vertex[2]< zhi/2:
+        return False
+    if IP>IP_cut: 
+        return False
+    if angle<angle_cut_lo: 
+        return False
+    if angle>angle_cut_hi: 
+        return False
+    if RadL_A > rad_max: 
+        return False
+    if RadL_B > rad_max: 
+        return False
+    if RadL_A + RadL_B > rad_sum_max: 
+        return False
+    if chargeA + chargeB < charge_sum_min: 
+        return False
+    if chargeA < charge_min: 
+        return False
+    if chargeB < charge_min: 
+        return False
+
+    return True
+
+
+def perform_second_cut_type_pair(IP,RadL_A, RadL_B, chargeA, chargeB, angle):
+    #Hardcode cuts
+    IP_cut_min = 2.6
+    angle_cut_lo = 0.9
+    angle_cut_hi = 2.0
+    charge_asym = 0.6
+    charge_sum_min = 1700000
+    charge_min = 250000
+
+    if IP<IP_cut_min: 
+        return False
+    if angle<angle_cut_lo: 
+        return False
+    if angle>angle_cut_hi: 
+        return False
+    if math.fabs(chargeA- chargeB)/(chargeA + chargeB)>charge_asym:
+        return False
+
+    return True
+
+
