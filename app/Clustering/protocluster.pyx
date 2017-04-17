@@ -1,13 +1,104 @@
 import numpy as np
 from operator import itemgetter # This should be removed... but it's not too heavy.
+from datetime import datetime
+
 
 ####
 # Clusters only return a labels list
 ####
 
+'''
+def dfs(node,index,taken,l):
+    taken[index]=True
+    ret=node
+    for i,item in enumerate(l):
+        if not taken[i] and not ret.isdisjoint(item):
+            ret.update(dfs(item,i,taken,l))
+    return ret
+
+def merge_all(l):
+    ret=[]
+    Taken = [False]*len(l)
+    for i,node in enumerate(l):
+        if not Taken[i]:
+            ret.append(list(dfs(node,i,Taken,l)))
+    return ret
+
+'''
+
+############################################################################
+##### KDTREE_HACK 
+############################################################################
+from sklearn.neighbors import KDTree
+def kdtree_radius( inup, mincluster ):
+
+    cdef float kradius 
+    cdef int leafsize, label_counter , i
+    #cdef int[:]  labels
+    #cdef int leafsize, label_counter 
+    leafsize = 10
+    kradius = 4.47
+    indexlist = [-1 for x in xrange(len(inup))]
+    unused =  [ [x[0],x[1],x[2]] for x in inup]
+    print len(unused)
+    print 'that is unuesd'
+    start_kd = datetime.now()
+    tree =  KDTree(unused, leaf_size= leafsize)
+    end_make_tree = datetime.now()
+    delta_RG_2 = end_make_tree-start_kd
+    start_kd2 = datetime.now()
+    print 'Tree is made in : '  , str(delta_RG_2.seconds)
+
+    print 'Tree is made'
+    qtree = tree.query_radius(unused,r=kradius)
+    end_2 = datetime.now()
+    delta_RG_2 = end_2-start_kd2
+    print 'Tree is queried in : '  , str(delta_RG_2.seconds)
+    delta_total = end_2-start_kd
+    print 'Total time is : '  , str(delta_total.seconds)
+    start_group = datetime.now()
+
+
+    #####################################
+    # This will take  a long time if we want to loopo over all of the points
+    #####################################
+
+    lists =qtree 
+    resultlist = []
+    if len(lists) >= 1: # If your list is empty then you dont need to do anything.
+        resultlist = [lists[0]] #Add the first item to your resultset
+        if len(lists) > 1: #If there is only one list in your list then you dont need to do anything.
+            for l in lists[1:]: #Loop through lists starting at list 1
+                listset = set(l) #Turn you list into a set
+                merged = False #Trigger
+                for index in range(len(resultlist)): #Use indexes of the list for speed.
+                    rset = set(resultlist[index]) #Get list from you resultset as a set
+                    if len(listset & rset) != 0: #If listset and rset have a common value then the len will be greater than 1
+                        resultlist[index] = list(listset | rset) #Update the resultlist with the updated union of listset and rset
+                        merged = True #Turn trigger to True
+                        break #Because you found a match there is no need to continue the for loop.
+                if not merged: #If there was no match then add the list to the resultset, so it doesnt get left out.
+                    resultlist.append(l)
+
+    end_group = datetime.now()
+    delta_group = end_group-start_group
+    print 'regroup time...  : '  , str(delta_group.seconds)
+
+    clusterlabel = 0
+    # return result holder
+    for h in resultlist:
+        if len(h)< mincluster:
+            continue
+        for s in h: 
+            indexlist[s] = clusterlabel
+        clusterlabel+=1
+            #remove from unused list 
+    return indexlist
+    
+
+############################################################################
 cdef inline float square_dist(float ax,float ay,float az ,float bx,float by,float bz ):
     return (ax-bx)*(ax-bx)+(ay-by)*(ay-by)+(az-bz)*(az-bz)
-
 
 ############################################
 ######### Walker Cluster ###################
@@ -15,7 +106,6 @@ cdef inline float square_dist(float ax,float ay,float az ,float bx,float by,floa
 def walker(inup, float dist, int mincluster):
     #Initialize an idx list to the label for -1
     idxlist = [-1 for x in range(len(inup))]
-#    punused = [x for x in range(len(inup))]
     cdef int idxcounter 
     cdef float tdist, max_z,un_x, un_y, un_z,tm_x, tm_y, tm_z, sqdist_test
 
