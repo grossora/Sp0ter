@@ -61,6 +61,37 @@ def CorrelatedObjects( dataset,idx_holder,labels):
     return ret_holder
 
 
+def bloat_showers_ROI(dataset, idx_holder ,labels):
+    bloatROI = []
+    if len(idx_holder) ==0:
+        return bloatROI 
+    for a in range(len(idx_holder)):
+        # Find the weighted charge 
+        points_v = []
+        q_v = []
+        for i in idx_holder[a]:
+            points_v.append([dataset[i][0],dataset[i][1],dataset[i][2]])
+            q_v.append(dataset[i][3])
+        Wavg_xyz = np.average(points_v,axis=0, weights = q_v)
+        # Now find the point farthest away
+        # Return ROI,Dist
+        max_distsq = 0.
+        for i in idx_holder[a]:
+            distsq =  pow((Wavg_xyz[0] - dataset[i][0]),2) +pow((Wavg_xyz[1] - dataset[i][1]),2) +pow((Wavg_xyz[2] - dataset[i][2]),2) 
+            if distsq>max_distsq:
+                max_distsq=distsq
+        # Once we get out... return the distance
+        max_dist = pow(max_distsq,0.5)
+        # I don't care about speed
+        bloatROI.append([Wavg_xyz,max_dist])
+    return bloatROI
+            
+        
+
+
+
+
+
 def CorrelatedObjectsROI( dataset,idx_holder,labels):
     # Retun a list that holds the ROI info [  [ROI].... ]
     # Each ROI :  [ vertex[x,y,z], shrAholderidx , ShrBholderidx ]

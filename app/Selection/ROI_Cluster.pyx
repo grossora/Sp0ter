@@ -2,6 +2,50 @@ import numpy as np
 import lib.utility.Utils.datahandle as dh
 
 
+def bloat_showers(f,dataset,showeridx_holder, ROI,roi_buffer, Charge_Thresh):
+
+    # Loop over the showeridx_ holder to find farthesst away point
+    max_dist_sq = 0.0
+
+    # loop over the ROI list and get the holders
+    #vertex_v = [ ROI[x][0] for x in range(len(ROI))]
+    #dist_sq = [ ROI[x][1]*ROI[x][1] for x in range(len(ROI))]
+
+    # Now  Rebase the dataset to a lower charge thersh
+    rebase = dh.ConvertWC_InTPC_thresh('{}'.format(f),Charge_Thresh)
+    roi_idx = []
+    roi_id_list = []
+    for i in range(len(rebase)):
+        # Rebase point 
+        # Check the point to be close to any give ROI with respective length thresh 
+        closest_dist_to_ROI = 10000000000000;# This is hardcode for now # and using it as a pass... really shaddy....
+        closest_ROI_ID = -1
+	
+        for vrv in range(len(ROI)):
+        #for vrv in vert_Rad_V:
+            rebase_test_dist = pow(rebase[i][0]-ROI[vrv][0][0],2) +pow(rebase[i][1]-ROI[vrv][0][1],2) + pow(rebase[i][2]-ROI[vrv][0][2],2)
+            if rebase_test_dist<pow(ROI[vrv][1]+roi_buffer,2) and rebase_test_dist<closest_dist_to_ROI:
+            #if rebase_test_dist<pow(ROI[vrv][1]+roi_buffer,2):
+                # keep this 
+                closest_dist_to_ROI = rebase_test_dist
+                closest_ROI_ID = vrv
+
+        if closest_ROI_ID!=-1:
+            roi_idx.append(i)
+            roi_id_list.append(vrv)
+	 
+                
+
+    re_dataset = [ rebase[x] for x in roi_idx]
+    rebase_dataset = np.asanyarray(re_dataset)
+
+    return rebase_dataset, roi_id_list
+
+
+
+   
+
+
 def rebase_spts(f,dataset,showeridx_holder, ROI,roi_buffer, Charge_Thresh):
 
     # Loop over the showeridx_ holder to find farthesst away point

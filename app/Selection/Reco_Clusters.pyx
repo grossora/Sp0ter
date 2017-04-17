@@ -32,6 +32,7 @@ def Reco_trackshower( dataset, mc_dl , jdir, jcount , make_jsons=True,timer=Fals
 
 
     start_RG_2 = datetime.now()
+    #labels = pc. kdtree_radius(dataset,min_spts) # Runs clustering and returns labels list 
     labels = pc.walker(dataset,nn_dist,min_spts) # Runs clustering and returns labels list 
     end_RG_2 = datetime.now()
     delta_RG_2 = end_RG_2-start_RG_2

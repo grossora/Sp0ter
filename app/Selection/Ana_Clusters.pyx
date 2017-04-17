@@ -37,8 +37,23 @@ def Ana_Object_photon_mergeall(jcount,f , mcinfo, mcdep, filename = 'photon_merg
             points_v.append(pt)
             points_wts_v.append(wt_q)
         q_tot = np.sum(q_v)
+        print 'This is the total q', str(q_tot)
         avg_xyz = np.average(points_v,axis=0) 
-        Wavg_xyz = np.average(points_v,axis=0, weights = q_v) 
+        print ' this is length of q ' , str(len(q_v))
+        print 'This Break A'
+        Wavg_xyz = [-999,-999,-999]
+        avg_xyz = [-999,-999,-999]
+        #if q_tot!=0:
+        try:
+            Wavg_xyz = np.average(points_v,axis=0, weights = q_v) 
+            #print 'in the TRy'
+        except:
+            print 'in the execpt'
+            #Wavg_xyz = np.average(points_v,axis=0) 
+            Wavg_xyz = [-999,-999,-999]
+            avg_xyz = [-999,-999,-999]
+	
+        print 'This Break B'
 	####################
 	#try to make a hull
 	####################
@@ -60,24 +75,44 @@ def Ana_Object_photon_mergeall(jcount,f , mcinfo, mcdep, filename = 'photon_merg
 
         except:
             good_hull = False
+            length = -999
+            area = -999
+            volume = -999
 	####################
 	#try to make a hull
 	####################
         try:
+            print 'in the second try'
             #pca = PCA(n_components=3)
             #pca.fit(points_v)
             pca = wp.WPCA(n_components=3)
             pca.fit(points_v,weights= points_wts_v )
+            print 'in the second try A'
             pav =  pca.explained_variance_
+            print 'in the second try B'
             pavr =  pca.explained_variance_ratio_
+            print 'in the second try C'
  
         except:
             good_PCA = False
+            pav = [ -999, -999, -999]
+            pavr = [ -999, -999, -999]
 	
+        print 'This Break C'
         # Make the string
         hull_string = str(length) + ' ' + str(area) + ' ' + str(volume)
         pca_string = str(pav[0]) + ' ' + str(pav[1]) + ' ' + str(pav[2]) + ' ' +str(pavr[0]) + ' ' + str(pavr[1]) + ' ' + str(pavr[2])
+   
+        print 'This Break D'
+        print 'q_tot ', str(q_tot)
+        print 'avg_xyz[0] ', str(avg_xyz[0])
+        print 'avg_xyz[1] ', str(avg_xyz[1])
+        print 'avg_xyz[2] ', str(avg_xyz[2])
+        print 'wavg_xyz[0] ', str(Wavg_xyz[0])
+        print 'wavg_xyz[1] ', str(Wavg_xyz[1])
+        print 'wavg_xyz[2] ', str(Wavg_xyz[2])
         pts_string = str(q_tot) + ' ' + str(avg_xyz[0])+' ' + str(avg_xyz[1])+' ' + str(avg_xyz[2])+ ' ' + str(Wavg_xyz[0])+' ' + str(Wavg_xyz[1])+' ' + str(Wavg_xyz[2])
+        print 'This Break E'
         ret_string = str(jcount)+' '+mcinfo+' '+mcdep +' '+str(n_objects)+' '+str(len(dataset))+' '+str(n_spts)+ ' ' + pts_string + ' ' + hull_string +' ' + pca_string+ '\n'
 	
 	# Write the string to the file
@@ -118,8 +153,23 @@ def Ana_Object_photons(dataset, holder, jcount,mcinfo,mcdep, filename = 'photon_
             points_v.append(pt)
             points_wts_v.append(wt_q)
         q_tot = np.sum(q_v)
-        avg_xyz = np.average(points_v,axis=0) 
-        Wavg_xyz = np.average(points_v,axis=0, weights = q_v) 
+        Wavg_xyz = [-999,-999,-999]
+        avg_xyz = [-999,-999,-999]
+        try: 
+            avg_xyz = np.average(points_v,axis=0) 
+        except:
+            print 'in the execpt'
+            avg_xyz = [-999,-999,-999]
+        #Wavg_xyz = np.average(points_v,axis=0, weights = q_v) 
+        #if q_tot!=0:
+        try:
+            Wavg_xyz = np.average(points_v,axis=0, weights = q_v)
+            #print 'in the TRy'
+        except:
+            print 'in the execpt'
+            #Wavg_xyz = np.average(points_v,axis=0) 
+            Wavg_xyz = [-999,-999,-999]
+
 	####################
 	#try to make a hull
 	####################
