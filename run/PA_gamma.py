@@ -87,6 +87,8 @@ for f in sys.argv[1:]:
     ########################
     dataset = dh.ConvertWC_InTPC_thresh('{}'.format(f),Charge_thresh)
     print 'size of dataset : ' , str(len(dataset))
+    if len(dataset)==0:
+        continue
     
     
 

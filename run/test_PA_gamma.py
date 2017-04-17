@@ -9,9 +9,9 @@ import numpy as np
 import lib.utility.Geo_Utils.detector as detector
 import lib.utility.Utils.mchandle as mh
 import lib.utility.Utils.datahandle as dh
-#import lib.Selection.Reco_Clusters as Er
-#import lib.Selection.Select_NeutralPion as Es
-#import lib.Selection.ROI_Cluster as Erc
+import lib.Selection.Reco_Clusters as Er
+import lib.Selection.Select_NeutralPion as Es
+import lib.Selection.ROI_Cluster as Erc
 
 
 #####################
@@ -20,6 +20,7 @@ import lib.utility.Utils.datahandle as dh
 import lib.Clustering.protocluster as pc
 import lib.utility.Utils.labelhanle as lh
 import lib.Selection.Ana_Clusters as Ea
+import lib.Merging.merger as mr 
 #####################
 ####################
 
@@ -36,8 +37,8 @@ start_Rtime = datetime.now()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
 #  This script will look at
-#  reconsturction of  merge all showers  
-#  this means  q = 0 
+#  reconsturction of showers assuming 
+# we are past the ROI stage useing a lower q
 #############################################
 #Global Calls
 debug = True
@@ -46,7 +47,7 @@ make_jsons = False
 make_ana = True 
 #make_ana = False 
 Charge_thresh = 1000 
-method_name = 'mergeall_gamma'
+method_name = 'test_PA_gamma'
 drun_dir = method_name
 jcount = -1
 
@@ -82,20 +83,13 @@ for f in sys.argv[1:]:
     print mcqdep 
 
 
-    Ea.Ana_Object_photon_mergeall(jcount,f,mcinfo,mcqdep, filename = 'photon_ana_obj_mergeall')
-
-    print ' AT THE END'
-
-
-
-
-
-    '''
     ########################
     #Bring in  Dataset 
     ########################
     dataset = dh.ConvertWC_InTPC_thresh('{}'.format(f),Charge_thresh)
     print 'size of dataset : ' , str(len(dataset))
+    if len(dataset)==0:
+        continue
     
     
 
@@ -113,12 +107,18 @@ for f in sys.argv[1:]:
 
     datasetidx_holder = lh.label_to_idxholder(labels,20) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
 
+    # Bring the merging. 
+    #datasetidx_holder , labels = mr.wpca_merge(dataset,labels,datasetidx_holder,.3,50)
+    labels = mr.wpca_merge(dataset,labels,datasetidx_holder,.35,150)
 
-    Ea.Ana_Object_photons(dataset, datasetidx_holder, jcount,mcinfo,mcqdep, filename = 'photon_ana_obj')
+    datasetidx_holder = lh.label_to_idxholder(labels,20) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+
+    Ea.Ana_Object_photons(dataset, datasetidx_holder, jcount,mcinfo,mcqdep, filename = 'test_photon_ana_obj')
 
     print ' AT THE END'
 
 
+    '''
     ########################
     # mc_datalabel info
     # Call this once and get the mc info for the jsons for later

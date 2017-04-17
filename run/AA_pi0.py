@@ -1,52 +1,41 @@
-from datetime import datetime
-start_Rtime = datetime.now()
-
-#LoadTime
 import sys, os
-sys.path.insert(0, "../")
 import numpy as np
+import Utils.datahandle as dh
 
-import lib.utility.Geo_Utils.detector as detector
-import lib.utility.Utils.mchandle as mh
-import lib.utility.Utils.datahandle as dh
-#import lib.Selection.Reco_Clusters as Er
-#import lib.Selection.Select_NeutralPion as Es
-#import lib.Selection.ROI_Cluster as Erc
+#import Clustering.protocluster as pc
+import Utils.labelhanle as lh
+import Merging.stitcher as st
+import Merging.merger as mr
+import Utils.mchandle as mh
+import TS_Qual.ts_separation as tss
+import Utils.mchandle as mh
+import Geo_Utils.axisfit as axfi
+import SParams.selpizero as selpz
+import Selection.Select_NeutralPion as Es
+import Selection.Ana_Clusters as Ea
+import Selection.ROI_Cluster as Erc
+
+import pyximport
+pyximport.install(pyimport = True)
+#import Selection.Reco_Clusters as Er
+from Selection import cReco_Clusters as Er
+from Selection import Select_NeutralPion as Es
+
+from datetime import datetime
 
 
-#####################
-# Import for special tests
-#####################
-import lib.Clustering.protocluster as pc
-import lib.utility.Utils.labelhanle as lh
-import lib.Selection.Ana_Clusters as Ea
-#####################
-####################
-
-
-
-end_Rtime = datetime.now()
-delta_Rt = end_Rtime-start_Rtime
-print 'RTIME' ,str(delta_Rt.seconds)+' loadtime'
-start_Rtime = datetime.now()
-
-#############################################
+#######################################
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# About this script
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
-#  This script will look at
-#  reconsturction of  merge all showers  
-#  this means  q = 0 
-#############################################
+#######################################
 #Global Calls
 debug = True
 make_jsons = False
 #make_jsons = True
 make_ana = True 
 #make_ana = False 
-Charge_thresh = 1000 
-method_name = 'mergeall_gamma'
+Charge_thresh = 2500 # Need to be set better This is used to mask over low charge spacepoints when bringing them into the Dataset
+#Charge_thresh = 4000 # Need to be set better This is used to mask over low charge spacepoints when bringing them into the Dataset
+method_name = 'AA_pi0'
 drun_dir = method_name
 jcount = -1
 
@@ -64,66 +53,29 @@ for f in sys.argv[1:]:
     ########################
     # Check if the File is good
     ########################
-    #file_info = dh.F_Info_Cosmic(f)
-    file_info = dh.F_Info(f)
-    ########################
-    # if the file is bad then continue and fill 
-    ########################
-    if not file_info:
-        continue
-
-    
-    ########################
-    # Bring in the MC info 
-    ########################
-    mcinfo = mh.gamma_mc_info(f)
-    mcqdep = mh.gamma_mc_dep(f)
-    print mcinfo 
-    print mcqdep 
-
-
-    Ea.Ana_Object_photon_mergeall(jcount,f,mcinfo,mcqdep, filename = 'photon_ana_obj_mergeall')
-
-    print ' AT THE END'
-
-
-
-
-
-    '''
-    ########################
-    #Bring in  Dataset 
-    ########################
-    dataset = dh.ConvertWC_InTPC_thresh('{}'.format(f),Charge_thresh)
-    print 'size of dataset : ' , str(len(dataset))
-    
-    
+    file_info = dh.F_Info_Cosmic(f)
+    #file_info = dh.F_Info(f)
 
     ########################
-    # Build the reco testing here 
+    # File info
     ########################
-    labels = []
-    trackidx_holder = []
-    showeridx_holder = []
-    if len(dataset)>=15000 or len(dataset)==0:
-        labels = pc.walker(dataset,6,20) # Runs clustering and returns labels list 
-    else:
-        labels = pc.crawlernn(dataset, 6, 20 ) # Runs clustering and returns labels list 
+    if debug:
+        print 'Current Event -->  Event Run SubRun : ',file_info[1]
 
-
-    datasetidx_holder = lh.label_to_idxholder(labels,20) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
-
-
-    Ea.Ana_Object_photons(dataset, datasetidx_holder, jcount,mcinfo,mcqdep, filename = 'photon_ana_obj')
-
-    print ' AT THE END'
-
+    ########################
+    # Is this a Signal Event  AKA One neutron induced pi0
+    ########################
+    #SigEVT =  mh.mc_neutron_induced_contained(f)
+    #print ' Is this a signal'
+    #if not SigEVT:
+#	continue
+ #   print '^^^^ this is signal '
 
     ########################
     # mc_datalabel info
     # Call this once and get the mc info for the jsons for later
     ########################
-    #mc_dl =  mh.mc_Obj_points(mh.mc_neutron_induced_OBJ(f))
+    mc_dl =  mh.mc_Obj_points(mh.mc_neutron_induced_OBJ(f))
 
     ########################
     # if the file is bad then continue and fill 
@@ -224,4 +176,4 @@ for f in sys.argv[1:]:
     #time_h.append(delta.seconds)
     continue
 
-    '''
+
