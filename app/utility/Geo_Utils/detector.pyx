@@ -37,4 +37,14 @@ def In_TPC(spt):
     return True
 
 
+def In_TPC_Fid(spt, fid_xlo=0, fid_xhi=0, fid_ylo=0, fid_yhi=0, fid_zlo=0, fid_zhi=0):
+    if spt[0] < x_lo+fid_xlo or spt[0]>x_hi-fid_xhi:
+        return False
+    if spt[1] <y_lo+fid_ylo or spt[1]>y_hi-fid_yhi:
+        return False
+    if spt[2] <z_lo+fid_zlo or spt[2]>z_hi-fid_zhi:
+        return False
+    return True
+
+
 
