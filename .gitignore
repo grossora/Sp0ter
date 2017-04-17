@@ -1,3 +1,19 @@
+#There are compiled from cythonizing 
 *.c
 
+# shared Objects 
 *.so
+
+# Any compiled pythons
+*.pyc
+
+
+# Any html's from looking at cythons
+*.html
+
+# Ignore pushing any root for text files
+*.root
+*.txt
+
+#Don't push any zip files
+*.zip
