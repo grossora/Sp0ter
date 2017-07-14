@@ -21,6 +21,7 @@ def weightshowerfit(inup,cl_idx_v):
     # inup is the whole dataset, cl_idx is the cluster index position for points
     #make the dataset for the cluster into an np array 
     # Data is in the form [[x,y,z].[],...[xn,yn,zn]]
+    cdef float maxcharge
     cl_pts = []
     # Find max charge for a pt 
     maxcharge = 0.0
@@ -86,10 +87,11 @@ def PCAParams_dir(inup,cl_idx_v,n_degree):
     return par
 
 
-def WPCAParamsR(inup,cl_idx_v,n_degree):
+def WPCAParamsR(inup,cl_idx_v,int n_degree):
     # inup is the whole dataset, cl_idx is the cluster index position for points
     #make the dataset for the cluster into an np array 
     # Data is in the form [[x,y,z].[],...[xn,yn,zn]]
+    cdef int s
     cl_pts = []
     c_wts = []
     for s in cl_idx_v: 
@@ -103,10 +105,11 @@ def WPCAParamsR(inup,cl_idx_v,n_degree):
     par = pca.explained_variance_ratio_
     return par
 
-def WPCAParams(inup,cl_idx_v,n_degree):
+def WPCAParams(inup,cl_idx_v,int n_degree):
     # inup is the whole dataset, cl_idx is the cluster index position for points
     #make the dataset for the cluster into an np array 
     # Data is in the form [[x,y,z].[],...[xn,yn,zn]]
+    cdef int s
     cl_pts = []
     c_wts = []
     for s in cl_idx_v: 
@@ -120,10 +123,11 @@ def WPCAParams(inup,cl_idx_v,n_degree):
     par = pca.explained_variance_
     return par
 
-def WPCAParams_dir(inup,cl_idx_v,n_degree):
+def WPCAParams_dir(inup,cl_idx_v,int n_degree):
     # inup is the whole dataset, cl_idx is the cluster index position for points
     #make the dataset for the cluster into an np array 
     # Data is in the form [[x,y,z].[],...[xn,yn,zn]]
+    cdef int s
     cl_pts = []
     c_wts = []
     for s in cl_idx_v: 

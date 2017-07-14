@@ -1,8 +1,11 @@
 import math as math
 from lib.utility.Geo_Utils import detector as geo
+import subprocess
 import ROOT
 
+################################
 # Define these locally for ease
+################################
 xlo = geo.GetX_Bounds()[0]
 xhi = geo.GetX_Bounds()[1]
 ylo = geo.GetY_Bounds()[0]
@@ -11,12 +14,81 @@ zlo = geo.GetZ_Bounds()[0]
 zhi = geo.GetZ_Bounds()[1]
 
 
+#####################
+# Remeber needs a top path string.... ugh
+#####################
+def spacecharge_shift(inx,iny,inz,tpath):
+    #####################
+    # expect this to have some a string for a path of the top
+
+    cmd = tpath+'/app/utility/SpaceCharge/./offset'
+
+    # This needs to get fixed..... we are going to assume to be excecuting code from the run area 
+    # so we will make a relative path from there to run this... 
+    # this is a pain and a stupid quick hack becuase we are going to use subprocess 
+
+
+    xx = '{}'.format(inx)
+    yy= '{}'.format(iny)
+    zz = '{}'.format(inz)
+    
+    # For now the space charge file will be hard coded 
+    #scf = '../app/utility/SpaceCharge/SCEoffsets_MicroBooNE_E273.root'
+    scf = tpath+'/app/utility/SpaceCharge/SCEoffsets_MicroBooNE_E273.root'
+    print ' here is tpath'
+    print tpath
+    print ' hehehehhe' 
+    print [cmd,xx,yy,zz,scf]
+    # Run the command
+    result = subprocess.Popen([cmd,xx,yy,zz,scf], stdout=subprocess.PIPE)
+
+    # this is not just a string
+    out = result.stdout.read()
+    out = out.strip().split(" ")
+    x = float(out[0])
+    y = float(out[1])
+    z = float(out[2])
+
+    return x , y , z
+
+def mcpart_tshift_sce(pobj_list,tpath):
+    tpc_off = 0.
+    v_drift = 0.11143588585879627
+
+    #first correct the spe#
+    
+    print' Here we are going to do some work ............loook'
+    #First shift all the positions
+    pishift = spacecharge_shift(pobj_list[1][0],pobj_list[1][1],pobj_list[1][2], tpath)
+    # just do x for now
+    print pishift
+    #pobj_list[1][0] = pobj_list[1][0] + pishift[0] # watch negative
+
+    xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 +tpc_off )*v_drift- pishift[0]
+    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 +tpc_off )*v_drift
+    print 'about the shift'
+    print pobj_list
+    print 'This is x ' , str(xshift)
+    #print ' this is the offset with drift ' ,str((pobj_list[1][3]/1000+ tpc_off)*v_drift)
+    pobj_list[1][0] = xshift
+    for i in range(len(pobj_list[3])):
+        #for d in range(len(pobj_list[3][i])):
+        pishift = spacecharge_shift(pobj_list[3][i][0][0],pobj_list[3][i][0][1],pobj_list[3][i][0][2], tpath)
+        print pishift
+        # just do x for now
+        #pobj_list[3][i][0][0] = pobj_list[3][i][0][0]- pishift[0] # watch negative
+        # dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000+ tpc_off )*v_drift
+        dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000+ tpc_off )*v_drift - pishift[0]
+        pobj_list[3][i][0][0] = dxshift
+
+    return pobj_list
+
+
 
 
 def mc_neutron_induced_OBJ_2( f ):
     tf = ROOT.TFile("{}".format(f))
     tree = tf.Get("mcShower")
-   # tree = tf.Get("mcShower")
 
     _x_particle = []
     _y_particle = []
@@ -115,8 +187,47 @@ def mc_neutron_induced_OBJ_2( f ):
     return True , pi0_4vect, pi0_4mom, daughter_4pair
 
 
+def mc_nue_obj(f):
+    # First get the neutrino position 
+    tf = ROOT.TFile("{}".format(f))
+    nutree = tf.Get("mcNeutrino")
+    nuvtx_x=nuvtx_y=nuvtx_z=-999 
+    for i in nutree:
+        nuvtx_x = [x for x in i.mcneutrino_nuVertexX][0]
+        nuvtx_y = [x for x in i.mcneutrino_nuVertexY][0]
+        nuvtx_z = [x for x in i.mcneutrino_nuVertexZ][0]
+    print 'This is the neutrino vertex ', nuvtx_x,' , ' , nuvtx_y,' , ', nuvtx_z
+    # Then find it in the list of mcshowers
+    tree = tf.Get("mcShower")
+    vtx_x=vtx_y=vtx_z=vtx_t=-999 
+    for i in tree:
+        vtx_x_vec = [x for x in i.mcshower_startX]
+        vtx_y_vec = [x for x in i.mcshower_startY]
+        vtx_z_vec = [x for x in i.mcshower_startZ]
+        vtx_t_vec = [x for x in i.mcshower_startT]
+	# Loop over all the mcshowers and find the one that is the same as nuE vtx
+        for s in range(len(vtx_x_vec)):
+            if vtx_x_vec[s]==nuvtx_x and vtx_y_vec[s]==nuvtx_y and vtx_z_vec[s]==nuvtx_z: 
+                print 'WHHHOOOOOAAA  We have the nuE mschower' 
+                vtx_x = vtx_x_vec[s]
+                vtx_y = vtx_y_vec[s]
+                vtx_z = vtx_z_vec[s]
+                vtx_t = vtx_t_vec[s]
+                break
+	
+    if vtx_x==-999: 
+       return False  	
+
+    nu_vtx = [ vtx_x , vtx_y , vtx_z, vtx_t]
+    return True , nu_vtx
+
 
 def mc_neutron_induced_contained_2( f ):
+#def mc_neutron_induced_contained_2( f ):
+    # Adding a hack for time cut with mc effects
+    # only look at events that are within [-2.2,T,2,2]
+    tlo = -2200000
+    thi = 2200000
     tf = ROOT.TFile("{}".format(f))
     tree = tf.Get("mcShower")
 
@@ -164,7 +275,7 @@ def mc_neutron_induced_contained_2( f ):
         for i in range(len(motherpdg_list)):
             if motherpdg_list[i]==111 and motherprocess_list[i]=='neutronInelastic' :
                 if motherid_list[i] in pi0_mothersid:
-                    if _x_particle[i]<xlo or  _x_particle[i]>xhi or  _y_particle[i]<ylo or  _y_particle[i]>yhi or  _z_particle[i]<zlo or  _z_particle[i]>zhi:
+                    if _x_particle[i]<xlo or  _x_particle[i]>xhi or  _y_particle[i]<ylo or  _y_particle[i]>yhi or  _z_particle[i]<zlo or  _z_particle[i]>zhi or _t_particle[i]<tlo or _t_particle[i]>thi:
                         contained = False
                         # Give up
                         break
@@ -181,7 +292,7 @@ def mc_neutron_induced_contained_2( f ):
                     daughter_4pair.append([tg_4vect,tg_4mom])
                     continue
 
-                if _x_motherparticle[i]<xlo or  _x_motherparticle[i]>xhi or  _y_motherparticle[i]<ylo or  _y_motherparticle[i]>yhi or  _z_motherparticle[i]<zlo or  _z_motherparticle[i]>zhi:
+                if _x_motherparticle[i]<xlo or  _x_motherparticle[i]>xhi or  _y_motherparticle[i]<ylo or  _y_motherparticle[i]>yhi or  _z_motherparticle[i]<zlo or  _z_motherparticle[i]>zhi or _t_motherparticle[i]<tlo or _t_motherparticle[i]>thi:
                     continue
 
                 pi0_mothersid.append(motherid_list[i])
@@ -194,7 +305,8 @@ def mc_neutron_induced_contained_2( f ):
                 pi0_4mom.append(_pz_motherparticle[i])
                 pi0_4mom.append(_e_motherparticle[i])
 
-                if _x_particle[i]<xlo or  _x_particle[i]>xhi or  _y_particle[i]<ylo or  _y_particle[i]>yhi or  _z_particle[i]<zlo or  _z_particle[i]>zhi:
+                if _x_particle[i]<xlo or  _x_particle[i]>xhi or  _y_particle[i]<ylo or  _y_particle[i]>yhi or  _z_particle[i]<zlo or  _z_particle[i]>zhi or _t_particle[i]<tlo or _t_particle[i]>thi:
+                #if _x_particle[i]<xlo or  _x_particle[i]>xhi or  _y_particle[i]<ylo or  _y_particle[i]>yhi or  _z_particle[i]<zlo or  _z_particle[i]>zhi:
                     contained = False
                     # Give up
                     break
@@ -224,7 +336,6 @@ def mc_neutron_induced_contained_2( f ):
             return False ,pi0_4vect,pi0_4mom, daughter_4pair
 
     return True , pi0_4vect, pi0_4mom, daughter_4pair
-
 
 
 
@@ -527,36 +638,56 @@ def mc_neutron_induced_OBJ( f ):
 
 
 def mcpart_tshift_2(pobj_list):
-    toff = 400 
-    #
+    tpc_off = 0.
+    v_drift = 0.11143588585879627
 
-    xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 )*(0.11)
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 )*(0.11)
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 +2381.8)*(0.11)*0.5
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 -3200+800+400)*(0.11)*0.5
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 )*(0.11)
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 + toff)*(0.11)
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 + toff)*(0.1114)
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]+toff)*(0.1114)
-    #xshift = pobj_list[1][0] + (pobj_list[1][3]+toff)*(11./ 100000)
-    #xshift = pobj_list[1][0] + pobj_list[1][3]*(11./ 100000)
+    xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 +tpc_off )*v_drift
     print 'about the shift'
     print pobj_list
     print 'This is x ' , str(pobj_list[1][0])
-    print ' this is the offset with drift ' ,str((pobj_list[1][3]/1000)*(0.11))
-    #print ' this is the offset with drift ' ,str((pobj_list[1][3]/1000)*(0.11))
-    #print ' this is the offset with drift ' ,str((pobj_list[1][3]/1000 -3200+400+800)*(0.11)*0.5)
-    #print ' this is the offset with drift ' ,str((pobj_list[1][3]/1000)*(0.11))
+    print ' this is the offset with drift ' ,str((pobj_list[1][3]/1000+ tpc_off)*v_drift)
     pobj_list[1][0] = xshift
     for i in range(len(pobj_list[3])):
         #for d in range(len(pobj_list[3][i])):
-        dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000 )*(0.11)
-        #dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000 )*(0.11)
-        #dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000  -3200+400+800)*(0.11)*0.5
-        #dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000+toff)*(0.1114)
+        dxshift = pobj_list[3][i][0][0] + (pobj_list[3][i][0][3]/1000+ tpc_off )*v_drift
         pobj_list[3][i][0][0] = dxshift
 
     return pobj_list
+
+def mcpart_nu_tshift(pobj_list):
+    tpc_off = 0.
+    v_drift = 0.11143588585879627
+
+    xshift = pobj_list[1][0] + (pobj_list[1][3]/1000 +tpc_off )*v_drift
+    pobj_list[1][0] = xshift
+    return pobj_list 
+ 
+
+def mc_Obj_nuvtx(pobj_list):
+    # pobj_list ==> True , [ x,y,z]
+    _xyz = pobj_list[1]
+    print 'debug '
+    print _xyz
+    space = 20* 3*1
+    dataset = [None for x in range(space)]
+    mclab = 0 # This is hard code magic for coloring in the bee viewer
+    box_size = 1
+    density = 5
+
+    # Draw a cross for the vertex 
+    counter=0
+    for i in range(0,box_size*100,density):
+        dataset[counter] = [_xyz[0]-box_size +2.*box_size*i/100.,_xyz[1],_xyz[2]]# wali the X
+        counter+=1
+        dataset[counter] = [_xyz[0],_xyz[1]-box_size +2.*box_size*i/100.,_xyz[2]]# wali the Y
+        counter+=1
+        dataset[counter] = [_xyz[0],_xyz[1],_xyz[2]-box_size +2.*box_size*i/100.]# wali the Z
+        counter+=1
+
+    labels = [0 for a in range(len(dataset))]
+    return dataset , labels
+
+
 
 def mc_Obj_points_2(pobj_list):
     #print obj_list

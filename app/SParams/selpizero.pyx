@@ -59,6 +59,7 @@ def findconversionlength(vtx,startpt):
 
 def findIP(shrA,shrB):
     # Get the first Shower 
+    cdef float dist
     shrA_dir = shrA[1]
     shrB_dir = shrB[1]
 
@@ -79,6 +80,7 @@ def findIP(shrA,shrB):
 
 
 def openingangle(shrA, shrB, vtx):
+    cdef float cos,angle
     shrA_dir = shrA[1]
     shrB_dir = shrB[1]
     pv = shrA[0]-vtx
@@ -107,6 +109,8 @@ def openingangle(shrA, shrB, vtx):
     return angle
     
 def totcharge(inup, indexset):
+    cdef int s 
+    cdef float totq
     totq =0.0
     for s in indexset:
         totq+= inup[s][3]

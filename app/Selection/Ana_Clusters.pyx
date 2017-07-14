@@ -9,11 +9,24 @@ import lib.utility.Geo_Utils.wpca as wp
 import lib.SParams.selpizero as selpz
 
 
+##################################
+# ----- list of function ------- #
 
+# --- Ana_Object_photon_mergeall
+# --- Ana_Object_photons
+# --- Ana_Object
+# --- Pi0_Ana_Object
+# --- Ana_Pi0_mc_pair_vtx
+# --- Ana_Pi0_mc_pair_vtx
+# --- Ana_CPi0_mc_pair_vtx
+# --- Ana_CosmicPi0_mc_pair_vtx
+
+###############################################
+######  Ana script for merge all photons ######
+###############################################
 def Ana_Object_photon_mergeall(jcount,f , mcinfo, mcdep, filename = 'photon_mergeall_obj'):
     lookup = open('Out_text/{}.txt'.format(filename),'a+')
  
-
     # Get all the charge:
     dataset = dh.ConvertWC_InTPC_thresh('{}'.format(f),0.0)
     holder = [[ x for x in range(len(dataset))]]
@@ -122,14 +135,9 @@ def Ana_Object_photon_mergeall(jcount,f , mcinfo, mcdep, filename = 'photon_merg
         bf_string = str('-999 ')*15+'-999' 
         ret_string = fmod_string+bf_string+'\n'
         lookup.writelines(ret_string)
-        
 
     lookup.close()
     return
-
-  
-
-
 
 def Ana_Object_photons(dataset, holder, jcount,mcinfo,mcdep, filename = 'photon_ana_obj'):
     lookup = open('Out_text/{}.txt'.format(filename),'a+')
@@ -526,6 +534,78 @@ def Ana_CPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, track_ho
 
 
 
+#==========================================================================================================
+def Ana_CosmicPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, track_holder,  mc_dl,filename = 'cosmic_pi0_pair_ana' ,ts='shower'):
+    lookup = open('Out_text/{}.txt'.format(filename),'a+')
+
+    mc_string = mh.piz_mc_info_2(f)
+    #mc_string = mh.piz_mc_info(f)
+    #dep_string = F_mc_pi0_fracs(f, dataset,Charge_thresh,shower_holder,track_holder,mc_dl)
+
+    if ts=='shower':
+        holder = shower_holder
+    if ts=='track':
+        holder = track_holder
+
+    # Loop over the pairs and return the vertex string
+    N_Showers = len(holder)
+    if len(holder) ==0:
+	# Return the string with -9
+        fill = str('-9 ')*12
+        fillline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+ ' '+ fill.rsplit(' ',1)[0] + '\n'  
+        #fillline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+ ' '+dep_string+' '+ fill.rsplit(' ',1)[0] + '\n'  
+        lookup.writelines(fillline)
+        lookup.close()
+        return
+        
+    if len(holder) ==1:
+	# Fill this with what we can eventually
+        fill = str('-1 ')*12
+        fillline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+ ' '+ fill.rsplit(' ',1)[0] + '\n'  
+        #fillline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+ ' '+dep_string+' '+ fill.rsplit(' ',1)[0] + '\n'  
+        lookup.writelines(fillline)
+        lookup.close()
+        return
+ 
+    for a in range(len(holder)):
+        shrA = axfi.weightshowerfit(dataset,holder[a])
+        EA = selpz.corrected_energy(dataset,holder[a])
+        ChargeA = selpz.totcharge(dataset,holder[a])
+        N_sptA = len(holder[a])
+
+        for b in range(a+1,len(holder)):
+            shrB = axfi.weightshowerfit(dataset,holder[b])
+            EB = selpz.corrected_energy(dataset,holder[b])
+            ChargeB = selpz.totcharge(dataset,holder[b])
+            N_sptB = len(holder[b])
+            vertex = selpz.findvtx(shrA,shrB)
+            IP = selpz.findIP(shrA,shrB)
+
+            SP_a = selpz.findRoughShowerStart(dataset,holder[a],vertex)
+            radL_a = selpz.findconversionlength(vertex,SP_a)
+            SP_b = selpz.findRoughShowerStart(dataset,holder[b],vertex)
+            radL_b = selpz.findconversionlength(vertex,SP_b)
+            angle = selpz.openingangle(shrA,shrB,vertex)
+
+
+            selection_line = str(N_sptA) + ' ' + str(ChargeA) + ' '+ str(N_sptB) + ' '+ str(ChargeB) + ' '+ str(vertex[0]) + ' '+ str(vertex[1]) + ' '+ str(vertex[2]) + ' '+ str(IP) + ' '+ str(radL_a) + ' '+ str(radL_b) + ' '+ str(angle)
+	    
+	    # Distance to vertex  This can be better... ugly
+            vtx_diff = pow( pow(vertex[0]-mc_dl[0][0][0],2) + pow(vertex[1]-mc_dl[0][0][1],2)+ pow(vertex[2]-mc_dl[0][0][2],2), 0.5)
+            # mcfullrecoline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+ ' '+str(vtx_diff)+' '+ selection_line + '\n'  
+            #mcfullrecoline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+' '+ dep_string+ ' '+str(vtx_diff)+' '+ selection_line + '\n'  
+            mcfullrecoline = str(jcount)+ ' '+ str(N_Showers)  + ' ' + mc_string+ ' '+str(vtx_diff)+' '+ selection_line + '\n'  
+            lookup.writelines(mcfullrecoline)
+    lookup.close()
+    return 
+
+
+
+
+
+
+
+
 
 
 
@@ -535,7 +615,6 @@ def Ana_CPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, track_ho
 ###########################################################################################################################
 #########################     non counted utility stype fillers      ######################################################
 ###########################################################################################################################
-
 
 #==========================================================================================================
 def F_pi0_vtx(mc_dl):

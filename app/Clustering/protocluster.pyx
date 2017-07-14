@@ -1,30 +1,48 @@
 import numpy as np
 from operator import itemgetter # This should be removed... but it's not too heavy.
 from datetime import datetime
+import  lib.utility.Geo_Utils.geo_funcs as gf
 
 
 ####
 # Clusters only return a labels list
 ####
 
-'''
-def dfs(node,index,taken,l):
-    taken[index]=True
-    ret=node
-    for i,item in enumerate(l):
-        if not taken[i] and not ret.isdisjoint(item):
-            ret.update(dfs(item,i,taken,l))
-    return ret
 
-def merge_all(l):
-    ret=[]
-    Taken = [False]*len(l)
-    for i,node in enumerate(l):
-        if not Taken[i]:
-            ret.append(list(dfs(node,i,Taken,l)))
-    return ret
+############################################################################
+##### Birch clustering 
+############################################################################
+from sklearn.cluster import Birch
+from time import time
+def birch_clust(inup, float radius, int max_value):
+    t = time()
+    dataset = inup[:,0:3]
+    print 'for inup with dataset in birch'
+    print len(dataset)
+    indexlist = [-1 for x in xrange(len(inup))]
+    try:
+        birch_model = Birch(threshold=radius,branching_factor=max_value, n_clusters=None)
+        birch_model.fit(dataset)
+        labels = birch_model.labels_
+    except MemoryError:
+        print 'memory issue.... give up'
+        labels = indexlist
+    
+    print ' length of the lables' 
+    print  len(labels) 
+    print ' here are the labels' 
+    print  labels 
+    n_clusters = np.unique(labels).size
+    print("n_clusters : %d" % n_clusters)
+    time_ = time() - t
+    print("Birch step took %0.2f seconds" % ((time() - t)))
+    unclust = [ x for x in range(len(labels)) if labels[x]==-1]
+    print 'Do we have any -1 left?'
+    print len(unclust)
+    print ' maybe ' 
+    return labels 
 
-'''
+   
 
 ############################################################################
 ##### KDTREE_HACK 
@@ -57,7 +75,6 @@ def kdtree_radius( inup, mincluster ):
     delta_total = end_2-start_kd
     print 'Total time is : '  , str(delta_total.seconds)
     start_group = datetime.now()
-
 
     #####################################
     # This will take  a long time if we want to loopo over all of the points
@@ -99,6 +116,8 @@ def kdtree_radius( inup, mincluster ):
 ############################################################################
 cdef inline float square_dist(float ax,float ay,float az ,float bx,float by,float bz ):
     return (ax-bx)*(ax-bx)+(ay-by)*(ay-by)+(az-bz)*(az-bz)
+
+
 
 ############################################
 ######### Walker Cluster ###################
@@ -144,7 +163,7 @@ def walker(inup, float dist, int mincluster):
                 tm_y = inup[te][1]
                 tm_z = inup[te][2]
                 #sqdist_test = (un_x-tm_x)*(un_x-tm_x)+(un_y-tm_y)*(un_y-tm_y)+(un_z-tm_z)*(un_z-tm_z)
-                sqdist_test = square_dist(un_x,un_y,un_z,tm_x,tm_y,tm_z)
+                sqdist_test = gf.square_dist(un_x,un_y,un_z,tm_x,tm_y,tm_z)
                 #sqdist_test = (inup[j][0]-inup[te][0])*(inup[j][0]-inup[te][0])+(inup[j][1]-inup[te][1])*(inup[j][1]-inup[te][1])+(inup[j][2]-inup[te][2])*(inup[j][2]-inup[te][2])
                 if sqdist_test<tdist:
                     # add j to tmpclust
