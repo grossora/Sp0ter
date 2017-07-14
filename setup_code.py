@@ -18,7 +18,19 @@ sys.path.insert(0, toppath)
 apppath = os.path.join(toppath,'app')
 libpath = os.path.join(toppath,'lib')
 
+#Run Make for Spacecharge 
 
+scpath = os.path.join(toppath,'app/utility/SpaceCharge')
+import subprocess 
+
+os.chdir(scpath)
+pro = subprocess.Popen(["make","spoter"])
+pro.wait()
+proc = subprocess.Popen(["make","clean2"])
+proc.wait()
+
+# Get back to the top
+os.chdir(toppath)
 ############################################
 ############################################
 
