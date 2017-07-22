@@ -535,10 +535,10 @@ def Ana_CPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, track_ho
 
 
 #==========================================================================================================
-def Ana_CosmicPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, track_holder,  mc_dl,filename = 'cosmic_pi0_pair_ana' ,ts='shower'):
+def Ana_CosmicPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, track_holder,  mc_dl, tpath,filename = 'cosmic_pi0_pair_ana' ,ts='shower'):
     lookup = open('Out_text/{}.txt'.format(filename),'a+')
 
-    mc_string = mh.piz_mc_info_2(f)
+    mc_string = mh.piz_mc_info_2(f,tpath)
     #mc_string = mh.piz_mc_info(f)
     #dep_string = F_mc_pi0_fracs(f, dataset,Charge_thresh,shower_holder,track_holder,mc_dl)
 
@@ -618,6 +618,7 @@ def Ana_CosmicPi0_mc_pair_vtx(f,Charge_thresh,dataset,jcount, shower_holder, tra
 
 #==========================================================================================================
 def F_pi0_vtx(mc_dl):
+    # We have to account for space charge
     vtx_x = mc_dl[0][0][0]
     vtx_y = mc_dl[0][0][1]
     vtx_z = mc_dl[0][0][2]

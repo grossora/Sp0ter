@@ -1,5 +1,4 @@
 import numpy as np
-#from sklearn.decomposition import PCA
 import lib.utility.Geo_Utils.axisfit as axfi
 from scipy.spatial import ConvexHull
 import lib.utility.Geo_Utils.detector as det
@@ -7,7 +6,7 @@ import lib.utility.Geo_Utils.geo_funcs as gf
 
 ##################################
 # ----- list of function ------- #
-
+#------------------------------- #
 # --- exiting_tracks_fid 
 # --- line_consensus 
 # --- clusterspread_first 
@@ -28,6 +27,9 @@ xDetL = det.GetX_Length()
 yDetL = det.GetY_Length()
 zDetL =  det.GetZ_Length()
 
+#################################
+# Just local for now
+#################################
 def make_extend_lines(pt_a , pt_b):
     #make a normalized direction vector 
     dirv = np.array([pt_b[0]-pt_a[0],pt_b[1]-pt_a[1],pt_b[2]-pt_a[2]])
@@ -40,41 +42,30 @@ def make_extend_lines(pt_a , pt_b):
     top_pt = sp + mp_length*dirv_norm
     bottom_pt = sp + mp_length*bdirv
     return [top_pt,bottom_pt]
-
 ####^^^^^^^^ Move this into geom
-
 
 def exiting_tracks_fid(dataset, holder ,float fxlo=0, float fxhi=0, float fylo=0,float fyhi=0,float fzlo=0,float fzhi=0 ):
     cdef int h , idx
     
     shower_holder = []
     track_holder = []
+
     for h in range(len(holder)):
         passed = True
         points_v=[]
+
         for idx in holder[h]:
-        #for idx in holder[h]:## You can do better
+
             pt = [dataset[idx][0],dataset[idx][1],dataset[idx][2]]
-            #points_v.append(pt)
             # Make sure all points are inside of fid... 
             if not det.In_TPC_Fid(pt,fxlo,fxhi,fylo,fyhi,fzlo,fzhi):
        	        # IF a point isn't then flag the holder as track
                 track_holder.append(holder[h])
                 passed=False
                 break
-        #try:
-        #    hull = ConvexHull(points_v)
-        #except:
-            #print ' AHHHHHHHHHH couldnt make hull'
-        #    track_holder.append(holder[h])
-        #    continue
+
         if passed:
             shower_holder.append(holder[h])
-        #elif hull.volume>300: # This number is madeup....
-        #    shower_holder.append(holder[h])
-        #else:
-        #    track_holder.append(holder[h])
-            
             
     return shower_holder,track_holder
 
@@ -87,6 +78,7 @@ def line_consensus(dataset, datasetidx_holder, float dist_thresh,float min_obj_l
     distsq_thresh = dist_thresh*dist_thresh
     trackidx_holder = []
     showeridx_holder = []
+
     # This loops over each objet
     for h in datasetidx_holder:
         ##########################
@@ -99,7 +91,6 @@ def line_consensus(dataset, datasetidx_holder, float dist_thresh,float min_obj_l
         try:
             hull = ConvexHull(points_v)
         except:
-            #print ' AHHHHHHHHHH couldnt make hull'
             # Put the cluster in the shower
             showeridx_holder.append(h)
             continue
@@ -120,7 +111,6 @@ def line_consensus(dataset, datasetidx_holder, float dist_thresh,float min_obj_l
             continue
 
         ##########################
-
         kept_points = []
         for i in range(len(h)):
             pt_i = dataset[h[i],0:-1]
@@ -390,8 +380,6 @@ def cluster_first_length(dataset,datasetidx_holder,float vari, float clength, in
         par = -999
         try:
             par = axfi.WPCAParamsR(points,[x for x in range(len(points))],3)
-            #par = axfi.PCAParamsR(points,[x for x in range(len(points))],3) # Try this? 
-            #par = axfi.WPCAParams(points,[x for x in range(len(points))],3)
             # Check this.... ^^^ is this correct
         except:
             #print ' could not make a PCA'
@@ -445,8 +433,6 @@ def cluster_second_length(dataset,datasetidx_holder, vari, clength, clustersize)
         par = -999
         try:
             par = axfi.WPCAParamsR(points,[x for x in range(len(points))],3)
-            #par = axfi.PCAParamsR(points,[x for x in range(len(points))],3) # Try this? 
-            #par = axfi.WPCAParams(points,[x for x in range(len(points))],3)
             # Check this.... ^^^ is this correct
         except:
             #print ' could not make a PCA'
@@ -503,8 +489,6 @@ def cluster_third_length(dataset,datasetidx_holder, vari, clength, clustersize):
         par = -999
         try:
             par = axfi.WPCAParamsR(points,[x for x in range(len(points))],3)
-            #par = axfi.PCAParamsR(points,[x for x in range(len(points))],3) # Try this? 
-            #par = axfi.WPCAParams(points,[x for x in range(len(points))],3)
             # Check this.... ^^^ is this correct
         except:
             #print ' could not make a PCA'
@@ -512,16 +496,12 @@ def cluster_third_length(dataset,datasetidx_holder, vari, clength, clustersize):
             continue
 
         if par[2]>0.0 and par[2] < vari and clust_length >clength :
-        #if par[1] < vari and clust_length >clength :
             track_holder.append(a)
             continue
         else:
             shower_holder.append(a)
 
     return shower_holder, track_holder
-
-
-
 
 
 
@@ -563,9 +543,6 @@ def clusterlength_sep(dataset,datasetidx_holder, min_length):
         if clust_length_sq<= min_length_sq:
             shower_holder.append(a)
         else :
-            #print ' ###############################'
-            #print ' Look we made a track object from length'
-            #print ' ###############################'
             track_holder.append(a)
 	
     return shower_holder, track_holder
@@ -595,19 +572,11 @@ def stray_charge_removal(dataset,datasetidx_holder,labels, max_csize, m_dist):
         except:
 	    # Use all the points in the cluster as the vertex points
             chq = [a,datasetidx_holder[a]]
-	    # RG 
-            #print ' in the exception '  
-            #print chq
-            #chq = [a,datasetidx_holder[a],tot_q]
             CHQ_vec.append(chq)
             continue
         # Now we have the hull
         ds_hull_idx = [datasetidx_holder[a][i] for i in list(hull.vertices)] # Remeber use the true idx
         chq = [a,ds_hull_idx]
-	# RG 
-        #print ' out the exception '  
-        #print chq
-        #chq = [a,ds_hull_idx,tot_q]
         CHQ_vec.append(chq)
     Strays = []  # This is the idx holderr for the datasetidx_holder....
     for a in range(len(CHQ_vec)):

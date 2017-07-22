@@ -16,10 +16,11 @@ from sklearn.cluster import Birch
 from time import time
 def birch_clust(inup, float radius, int max_value):
     t = time()
-    dataset = inup[:,0:3]
-    print 'for inup with dataset in birch'
-    print len(dataset)
+    dataset = inup[:,0:3] #remove the charge
+    #print 'for inup with dataset in birch'
+    #print len(dataset)
     indexlist = [-1 for x in xrange(len(inup))]
+
     try:
         birch_model = Birch(threshold=radius,branching_factor=max_value, n_clusters=None)
         birch_model.fit(dataset)
@@ -28,21 +29,17 @@ def birch_clust(inup, float radius, int max_value):
         print 'memory issue.... give up'
         labels = indexlist
     
-    print ' length of the lables' 
-    print  len(labels) 
-    print ' here are the labels' 
-    print  labels 
+    #print ' length of the lables' 
+    #print  len(labels) 
+    #print ' here are the labels' 
+    #print  labels 
     n_clusters = np.unique(labels).size
-    print("n_clusters : %d" % n_clusters)
+    #print("n_clusters : %d" % n_clusters)
     time_ = time() - t
-    print("Birch step took %0.2f seconds" % ((time() - t)))
+    #print("Birch step took %0.2f seconds" % ((time() - t)))
     unclust = [ x for x in range(len(labels)) if labels[x]==-1]
-    print 'Do we have any -1 left?'
-    print len(unclust)
-    print ' maybe ' 
     return labels 
 
-   
 
 ############################################################################
 ##### KDTREE_HACK 
@@ -113,6 +110,11 @@ def kdtree_radius( inup, mincluster ):
     return indexlist
     
 
+
+
+
+
+'''
 ############################################################################
 cdef inline float square_dist(float ax,float ay,float az ,float bx,float by,float bz ):
     return (ax-bx)*(ax-bx)+(ay-by)*(ay-by)+(az-bz)*(az-bz)
@@ -271,11 +273,9 @@ def crawlernn(inup, float dist,int min_cls ):
     #######
 
     # Happens once
-    '''
     unusedlist = [(x,inup[x][0],inup[x][1],inup[x][2]) for x in range(len(inup))]
     ## First sort the list based on z position since is it has the most spread
     unusedlist.sort(key=itemgetter(3))
-    '''
     #print inup 
 
     punused = [x for x in range(len(inup))]
@@ -360,3 +360,4 @@ def crawlernn(inup, float dist,int min_cls ):
 	# because this means we tried them
     ### The unused list should still remain sorted... so we can just pick up with the next batch step	
     return indexlist
+'''

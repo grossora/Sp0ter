@@ -53,3 +53,53 @@ def make_extend_lines(pt_a , pt_b):
     return [top_pt,bottom_pt]
 
 
+###########################################################################################
+##################    function to find 3d point from doca   ###############################
+###########################################################################################
+def find_midpt(pa,pa_dir,pb,pb_dir):
+    #make all nparray 
+    pa = np.asarray(pa)
+    pb = np.asarray(pb)
+    pa_dir = np.asarray(pa_dir)
+    pb_dir = np.asarray(pb_dir)
+    
+    w0 = pa-pb
+    a = np.dot(pa_dir,pa_dir)
+    b = np.dot(pa_dir,pb_dir)
+    c = np.dot(pb_dir,pb_dir)
+    d = np.dot(pa_dir,w0)
+    e = np.dot(pb_dir,w0)
+    
+    # Get critical point
+    sc = (b*e-c*d)/(a*c - b*b)
+    tc = (a*e - b*d)/(a*c - b*b)
+    pasc = pa + sc*pa_dir
+    pbsc = pb + tc*pb_dir
+
+    # Return midpoint and distacne 
+    midpt = (pasc+pbsc)/2.
+    dist = np.sqrt(np.sum((pasc-pbsc)**2))
+
+    return midpt , dist
+
+
+def dist_point_line(p,l):
+    #line comes in as [ point , dir ]
+    p= np.asarray(p)
+    q= np.asarray(l[0])
+    v= np.asarray(l[1])
+    
+    w = p-q
+    c1 = np.dot(w,v)
+    c2 = np.dot(v,v)
+
+    b = c1/c2
+ 
+    pb = q +b*v
+    # dist between points 
+    dist = np.linalg.norm(pb-p)
+    return dist
+
+
+
+

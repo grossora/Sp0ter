@@ -2,7 +2,8 @@ import numpy as np
 import lib.utility.Geo_Utils.axisfit as axfi
 import lib.utility.Geo_Utils.geo_funcs as gf
 from scipy.spatial import ConvexHull
-
+import lib.SParams.selpizero as selpz
+import lib.utility.Geo_Utils.wpca as wp 
 
 def sublist_group(l):
     #cdef int i , item, node , index
@@ -23,7 +24,327 @@ def sublist_group(l):
             ret.append(list(dfs(node,i)))
     return ret
 
+def Shower_Brute_nn_proh(dataset, datasetidx_holder, labels,float nn_dist, float crit_angle):
+    min_sq_dist = nn_dist*nn_dist    
 
+    clust_merge_plex=[]
+    # this will be order with [pt,dir]
+    pca_map = [] 
+
+    for aa in range(len(datasetidx_holder)):
+        pt = []
+        cc = []
+        for s in datasetidx_holder[aa]:
+            t = [dataset[s][0],dataset[s][1],dataset[s][2]]
+            c = [dataset[s][3],dataset[s][3],dataset[s][3]]
+            pt.append(t)
+            cc.append(t)
+
+        # make the WPCA
+        wpt = np.average(pt,axis=0, weights = cc)
+        pca = wp.WPCA(n_components=1)# this might need to be one
+        pca.fit(pt,cc)
+        pca_map.append([ wpt, pca.components_[0] ] )
+
+    for a in range(len(datasetidx_holder)):
+        did_attempt_merge=False
+        for pta_idx in datasetidx_holder[a]:
+            if did_attempt_merge: 
+                break
+            pta_x = dataset[pta_idx][0] 
+            pta_y = dataset[pta_idx][1] 
+            pta_z = dataset[pta_idx][2] 
+
+            for b in xrange(a+1,len(datasetidx_holder)):
+                for ptb_idx in datasetidx_holder[b]:
+                    ptb_x = dataset[ptb_idx][0] 
+                    ptb_y = dataset[ptb_idx][1] 
+                    ptb_z = dataset[ptb_idx][2] 
+                    sq_dist= (pta_x-ptb_x)**2+  (pta_y-ptb_y)**2 + (pta_z-ptb_z)**2
+
+                    if sq_dist<min_sq_dist: 
+                        # check if this their angles are less than crit
+                        vertex = selpz.findvtx(pca_map[a],pca_map[b])
+                        angle = selpz.openingangle(pca_map[a],pca_map[b],vertex)
+
+                        if angle < crit_angle or angle>3.14159-crit_angle:
+                            # We have a merge
+                            clust_merge_plex.append([a,b])
+                        did_attempt_merge = True
+                        break
+
+    resultlist =  sublist_group(clust_merge_plex)
+
+    ####### Reassign all labels for the results list
+    for pa in resultlist:
+        # First one keeps the label
+        clusterlabel = pa[0]
+        # These already should all have the same labels
+        cluster_idx_positions =  datasetidx_holder[clusterlabel]
+        # This gets the label value for the cluster
+        labels_label = labels[cluster_idx_positions[0]]
+        for p in range(1,len(pa)):
+            # p is the clusterlabel
+            cidx = datasetidx_holder[pa[p]]
+            for i in cidx:
+                labels[i] = labels_label
+   
+    # now merge the holders
+    new_holder = []
+
+    # This is jenky 
+    flat_merge_list = [ item for sublist in resultlist for item in sublist]
+    free_list = [ x for x in range(len(datasetidx_holder)) if x not in flat_merge_list]
+    
+    for h in resultlist:
+        temp_new_holder = []
+        for hidx in h:
+            for idx in datasetidx_holder[hidx]:
+                temp_new_holder.append(idx)
+        new_holder.append(temp_new_holder)
+
+    # append the free to new
+    for h in free_list:
+        new_holder.append(datasetidx_holder[h])
+
+    return new_holder,labels
+
+
+def Shower_merge_wtpt_to_trunk_v2(dataset, datasetidx_holder , labels,too_small, min_proj_imact_dist, min_dot,min_doca_dist  ): 
+
+    # the idea is to take the largest few shower objects and merge them to the rest of the smaller ones. 
+
+    # Here we are assuming we did an ok job with track removal 
+    clust_merge_plex  = []
+
+    #params : 
+    # number of large showers to try or Size of showers to try mergins 
+   
+ 
+    # this will be order with [pt,dir]
+    pca_map = [] 
+    #shower_size_key = []
+    datasetidx_holder.sort(key=len)# now this is sorted from small to large 
+    datasetidx_holder.reverse()# now sortded from largest amoutn of spts to smalles
+
+    for aa in range(len(datasetidx_holder)):
+        pt = []
+        cc = []
+        #shower_size_key = len(datasetidx_holder[aa])# This if for spacepoints... not charge
+
+        for s in datasetidx_holder[aa]:
+            t = [dataset[s][0],dataset[s][1],dataset[s][2]]
+            c = [dataset[s][3],dataset[s][3],dataset[s][3]]
+            pt.append(t)
+            cc.append(t)
+
+        # make the WPCA
+        wpt = np.average(pt,axis=0, weights = cc)
+        pca = wp.WPCA(n_components=1)# this might need to be one
+        pca.fit(pt,cc)
+        pca_map.append([ wpt, pca.components_[0] ] )
+ 
+    # Sort an index of maps based on the shower size
+
+    for large_shower_idx in range(len(pca_map)):
+        # compare distance  large of line to points in small 
+        # Need a stop mech if the shower is too small to be large
+        if len(datasetidx_holder[large_shower_idx])< too_small:
+            break
+        current_line = pca_map[large_shower_idx]
+        for small_shower_idx in range(large_shower_idx+1,len(pca_map)):
+            small_pt = pca_map[small_shower_idx][0]
+            test_dist = gf.dist_point_line(small_pt,current_line)# actual\ dist. not sqdist 
+            # if dist is small
+            if test_dist< min_proj_imact_dist:
+                # check the angles between and check their IP.... there's a function for this 
+                # stuff
+                # if angles are good merge to cluster plex
+                doca_midpt, doca_dist =  gf.find_midpt(pca_map[large_shower_idx][0],pca_map[large_shower_idx][1],pca_map[small_shower_idx][0],pca_map[small_shower_idx][1])
+                # This is the doca for the two fit clusters
+                if doca_dist < min_doca_dist:
+                    # Take the dotproduct
+                    temp_dot = np.dot(pca_map[large_shower_idx][1],pca_map[small_shower_idx][1])
+                    print 'this is the dot_prod'
+                    print temp_dot
+                    # We want a dot that is not near zero
+                    if temp_dot>-min_dot and temp_dot<min_dot: 
+                        #DO NOT MERGE... THIS IS CLOSE TO PERP
+                        print 'DONT MERGE'
+                        continue
+                    clust_merge_plex.append([large_shower_idx,small_shower_idx])
+                    #  IF WE make it... then merge them to a cluster plex
+ 
+    # Push together the plex
+    print 'this is cluster mergeplex' 
+    print clust_merge_plex           
+    resultlist =  sublist_group(clust_merge_plex)
+    print ' this is the result'
+    print resultlist           
+
+    print '##############'
+    print '##############'
+    print 'now the pre labels'
+    ####### Reassign all labels for the results list
+    for pa in resultlist:
+        # First one keeps the label
+        clusterlabel = pa[0]
+        # These already should all have the same labels
+        cluster_idx_positions =  datasetidx_holder[clusterlabel]
+        # This gets the label value for the cluster
+        labels_label = labels[cluster_idx_positions[0]]
+        for p in range(1,len(pa)):
+            # p is the clusterlabel
+            cidx = datasetidx_holder[pa[p]]
+            for i in cidx:
+                labels[i] = labels_label
+
+    print '##############'
+    print '##############'
+    print 'now the post labels'
+    
+    # now merge the holders
+    new_holder = []
+    # This is jenky 
+    flat_merge_list = [ item for sublist in resultlist for item in sublist]
+    free_list = [ x for x in range(len(datasetidx_holder)) if x not in flat_merge_list]
+    
+    for h in resultlist:
+        temp_new_holder = []
+        for hidx in h:
+            for idx in datasetidx_holder[hidx]:
+                temp_new_holder.append(idx)
+        new_holder.append(temp_new_holder)
+    # append the free to new
+    for h in free_list:
+        new_holder.append(datasetidx_holder[h])
+
+    return new_holder,labels
+
+
+#########################################33
+def Shower_merge_wtpt_to_trunk(dataset, datasetidx_holder , labels, large_size_value,  min_proj_imact_dist, min_dot,min_doca_dist  ): 
+
+    # the idea is to take the largest few shower objects and merge them to the rest of the smaller ones. 
+
+    # Here we are assuming we did an ok job with track removal 
+    clust_merge_plex  = []
+
+    #params : 
+    # number of large showers to try or Size of showers to try mergins 
+   
+ 
+    # this will be order with [pt,dir]
+    pca_map = [] 
+    large_shower_key = []
+
+    for aa in range(len(datasetidx_holder)):
+        pt = []
+        cc = []
+        if len(datasetidx_holder[aa])>large_size_value: # This if for spacepoints... not charge
+            large_shower_key.append(aa) # this gives me the index value for the showers that are large enough 
+        for s in datasetidx_holder[aa]:
+            t = [dataset[s][0],dataset[s][1],dataset[s][2]]
+            c = [dataset[s][3],dataset[s][3],dataset[s][3]]
+            pt.append(t)
+            cc.append(t)
+
+        # make the WPCA
+        wpt = np.average(pt,axis=0, weights = cc)
+        pca = wp.WPCA(n_components=1)# this might need to be one
+        pca.fit(pt,cc)
+        pca_map.append([ wpt, pca.components_[0] ] )
+ 
+    # this means if not in large_key then it's small 
+    small_shower_key= [ x for x in range(len(datasetidx_holder)) if x not in large_shower_key]
+    # loop over the large showers and compare with small showers
+
+    for large_shower_idx in large_shower_key:
+        # compare distance  large of line to points in small 
+        current_line = pca_map[large_shower_idx]
+        for small_shower_idx in small_shower_key:
+            small_pt = pca_map[small_shower_idx][0]
+            test_dist = gf.dist_point_line(small_pt,current_line)# actual\ dist. not sqdist 
+            # if dist is small
+            if test_dist< min_proj_imact_dist:
+                # check the angles between and check their IP.... there's a function for this 
+                # stuff
+                # if angles are good merge to cluster plex
+                doca_midpt, doca_dist =  gf.find_midpt(pca_map[large_shower_idx],pca_map[small_shower_idx])
+                # This is the doca for the two fit clusters
+                if doca_dist < min_doca_dist:
+                    # Take the dotproduct
+                    temp_dot = np.dot(pca_map[large_shower_idx][0],pca_map[small_shower_idx][0])
+                    # We want a dot that is not near zero
+                    if temp_dot>-min_dot and temp_dot<min_dot: 
+                        #DO NOT MERGE... THIS IS CLOSE TO PERP
+                        print 'DONT MERGE'
+                        continue
+                    clust_merge_plex.append([large_shower_idx,small_shower_idx])
+                    #  IF WE make it... then merge them to a cluster plex
+ 
+    # Push together the plex
+    print 'this is cluster mergeplex' 
+    print clust_merge_plex           
+    resultlist =  sublist_group(clust_merge_plex)
+    print ' this is the result'
+    print resultlist           
+
+    print '##############'
+    print '##############'
+    print 'now the pre labels'
+    ####### Reassign all labels for the results list
+    for pa in resultlist:
+        # First one keeps the label
+        clusterlabel = pa[0]
+        # These already should all have the same labels
+        cluster_idx_positions =  datasetidx_holder[clusterlabel]
+        # This gets the label value for the cluster
+        labels_label = labels[cluster_idx_positions[0]]
+        for p in range(1,len(pa)):
+            # p is the clusterlabel
+            cidx = datasetidx_holder[pa[p]]
+            for i in cidx:
+                labels[i] = labels_label
+
+    print '##############'
+    print '##############'
+    print 'now the post labels'
+    
+    # now merge the holders
+    new_holder = []
+    # This is jenky 
+    flat_merge_list = [ item for sublist in resultlist for item in sublist]
+    free_list = [ x for x in range(len(datasetidx_holder)) if x not in flat_merge_list]
+    
+    for h in resultlist:
+        temp_new_holder = []
+        for hidx in h:
+            for idx in datasetidx_holder[hidx]:
+                temp_new_holder.append(idx)
+        new_holder.append(temp_new_holder)
+    # append the free to new
+    for h in free_list:
+        new_holder.append(datasetidx_holder[h])
+
+    return new_holder,labels
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
 
 def Shower_Brute_nn(dataset, datasetidx_holder, labels,float nn_dist):
     min_sq_dist = nn_dist*nn_dist    
@@ -64,11 +385,28 @@ def Shower_Brute_nn(dataset, datasetidx_holder, labels,float nn_dist):
                 labels[i] = labels_label
 
 
-    return datasetidx_holder,labels
+   # now merge the holders
+    new_holder = []
+    # This is jenky 
+    flat_merge_list = [ item for sublist in resultlist for item in sublist]
+    free_list = [ x for x in range(len(datasetidx_holder)) if x not in flat_merge_list]
+
+    for h in resultlist:
+        temp_new_holder = []
+        for hidx in h:
+            for idx in datasetidx_holder[hidx]:
+                temp_new_holder.append(idx)
+        new_holder.append(temp_new_holder)
+    # append the free to new
+    for h in free_list:
+        new_holder.append(datasetidx_holder[h])
+
+
+    return new_holder,labels
 
 
 
-def Track_Stitcher_nn(dataset,datasetidx_holder,labels, float edge_dist):
+def Track_Stitcher_nn(dataset,datasetidx_holder,labels, float edge_dist, quick=True):
     cdef float edge_dist_sq, min_z , max_z, test_sq_dist, jjx,jjy,jjz, kkx,kky,kkz
     cdef int a,i, j,k,jj,kk, clusterlabel,  p
 
@@ -106,9 +444,10 @@ def Track_Stitcher_nn(dataset,datasetidx_holder,labels, float edge_dist):
         #if vert_vec[j][2][1]> 200:  # Shit hack
          #   break # Shit Hack
         for k in range(j+1,len(vert_vec)):
-            if vert_vec[k][2][0] - vert_vec[j][2][1] > edge_dist:
+            if quick:
+                if vert_vec[k][2][0] - vert_vec[j][2][1] > edge_dist:
             #if vert_vec[k][2][0] - vert_vec[j][2][1] > edge_dist+1:
-                break
+                    break
             # Now loop over points in each
             found_match = False
             for jj in vert_vec[j][1]:
@@ -508,7 +847,4 @@ def Track_Stitcher_epts(dataset,datasetidx_holder,labels, float gap_dist,float k
     # I just  need the labels at the moment .... and this is a fucking mess.... 
     return datasetidx_holder,labels
 
-
-
-
-
+'''

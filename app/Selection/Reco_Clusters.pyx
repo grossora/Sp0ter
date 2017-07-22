@@ -123,9 +123,9 @@ def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
     ##################################################
     #showeridx_holder , trackidx_holder = tss.clusterlength_sep(dataset,showeridx_holder,cmin_length)
     #showeridx_holder , trackidx_holder = tss.cluster_first_length(dataset,datasetidx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
-    if make_jsons:
-        dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'Shower_clsuter_fistL', mc_dl)
-        dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'Track_clsuter_fistL', mc_dl)
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'Shower_clsuter_fistL', mc_dl)
+    #    dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'Track_clsuter_fistL', mc_dl)
 
     
     #===Run the sweep===
@@ -177,18 +177,35 @@ def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
     # This is just to make things pretty
 
 
-    if True:
-        dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'lastShowers', mc_dl)
-        dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'lastTracks', mc_dl)
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'lastShowers', mc_dl)
+    #    dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'lastTracks', mc_dl)
 
     # Now we are doing a reclustering
-    #showeridx_holder, labels = st.Shower_Brute_nn(dataset,showeridx_holder,labels,snn_dist)
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,100,0.25)
+    #showeridx_holder = lh.label_to_idxholder(labels,10) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+
+    showeridx_holder, labels = st.Shower_Brute_nn(dataset,showeridx_holder,labels,4)
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,20,0.5)
+
+
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'secondtoShowers', mc_dl)
+
+    #Params 
+    too_small = 300 
+    min_proj_impact_dist = 15
+    min_dot =  0.8
+    min_doca_dist = 20
+    showeridx_holder, labels = st.Shower_merge_wtpt_to_trunk_v2(dataset,showeridx_holder,labels,too_small, min_proj_impact_dist, min_dot,min_doca_dist)
+    #showeridx_holder, labels = stShower_merge_wtpt_to_trunk(dataset,showeridx_holder,labels, large_size_value,  min_proj_imact_dist, min_dot,min_doca_dist  ):
+
 
     showerlabels = lh.unique_relabel(labels,showeridx_holder)
 
-    if make_jsons:
-        dh.MakeJson_Objects(dataset,showeridx_holder,showerlabels,jdir,jcount,'FinalShowers', mc_dl)
-        dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'FinalTracks', mc_dl)
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,showerlabels,jdir,jcount,'FinalShowers', mc_dl)
+    #    dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'FinalTracks', mc_dl)
 
 
     return trackidx_holder , showeridx_holder , labels

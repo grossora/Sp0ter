@@ -13,14 +13,20 @@ from scipy.spatial import ConvexHull
 ###########################################################################################
 #############     a few functions to use for the geometry ################################
 ###########################################################################################
+
 cdef float xDetL,yDetL,zDetL
 xDetL = det.GetX_Length()
 yDetL = det.GetY_Length()
 zDetL =  det.GetZ_Length()
+
+###########################################################################################
 ###########################################################################################
 ###########################################################################################
 
 
+###########################################################################################
+#############    local function       #####################################################
+###########################################################################################
 def sublist_group(l):
     #cdef int i , item, node , index
     taken=[False]*len(l)
@@ -39,42 +45,22 @@ def sublist_group(l):
         if not taken[i]:
             ret.append(list(dfs(node,i)))
     return ret
+###########################################################################################
+###########################################################################################
+###########################################################################################
 
 
 
-def make_extend_lines_list(dataset , idxlist_for_tracks,labels):
-    # loop over all the 'track' points 
-    # take the pca for direction 
-    # extend the direction past the top and bottom in y 
-    # make a circle of radius that is user defined. 
-    # return the vector of points for each..there is no hull done here...  just getting the points to make hulls for 
-    cdef int p
-    cdef float mp_length
-    lp_list = [] # Append will be slow.... but this is ok for now
-    for t in idxlist_for_tracks:
-        #Get PCA Direction # note... this will be easier when more organized ... we have done this loop already once
-        pointsc = []
-        label_val = labels[t[0]]# This gets the label value to pass along
-        for p in t:
-            ptc = [ dataset[p][0],dataset[p][1],dataset[p][2],dataset[p][3] ]
-            pointsc.append(ptc)
-        # This PCA Should always converge since we have done it already 
-	# There should be a Try in here
-        pcacomp = axfi.WPCAParams_dir(pointsc,[x for x in range(len(t))],3)
-        tdir_forward = pcacomp[0]
-        tdir_backward = -1.0*pcacomp[0]
-        # Get start point 
-        sp = np.mean(np.asarray(pointsc),axis=0)[:-1] # clip off the charge
-        # Instead of finding the box ... just extent past the farthest possible track ( corner to corner ) 
-        # This needs to be corrected for outside of TPC
-        mp_length = pow( pow(zDetL*100,2)+pow(xDetL*100,2) + pow(yDetL*100,2),0.5)
-        #mp_length = pow( pow(zDetL,2)+pow(xDetL,2) + pow(yDetL,2),0.5)
-        top_pt = sp + mp_length*tdir_forward
-        bottom_pt = sp + mp_length*tdir_backward
-        # Calcuate brute forced cyl polygon 
-        pointslist = [label_val,top_pt, bottom_pt]
-        lp_list.append(pointslist)
-    return lp_list
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -116,9 +102,45 @@ def Shower_Forward_Sweep(dataset,idx_holder, labels):
 #            Length_between_vtx = pow( pow((vtx_A[0] - vtx_B[0]),2) + pow((vtx_A[1] - vtx_B[1]),2)+ pow((vtx_A[2] - vtx_B[2]),2) ,0.5) # This is slow
 
         
-    
+ 
+def make_extend_lines_list(dataset , idxlist_for_tracks,labels):
+    # loop over all the 'track' points 
+    # take the pca for direction 
+    # extend the direction past the top and bottom in y 
+    # make a circle of radius that is user defined. 
+    # return the vector of points for each..there is no hull done here...  just getting the points to make hulls for 
+    cdef int p
+    cdef float mp_length
+    lp_list = [] # Append will be slow.... but this is ok for now
+    for t in idxlist_for_tracks:
+        #Get PCA Direction # note... this will be easier when more organized ... we have done this loop already once
+        pointsc = []
+        label_val = labels[t[0]]# This gets the label value to pass along
+        for p in t:
+            ptc = [ dataset[p][0],dataset[p][1],dataset[p][2],dataset[p][3] ]
+            pointsc.append(ptc)
+        # This PCA Should always converge since we have done it already 
+	# There should be a Try in here
+        pcacomp = axfi.WPCAParams_dir(pointsc,[x for x in range(len(t))],3)
+        tdir_forward = pcacomp[0]
+        tdir_backward = -1.0*pcacomp[0]
+        # Get start point 
+        sp = np.mean(np.asarray(pointsc),axis=0)[:-1] # clip off the charge
+        # Instead of finding the box ... just extent past the farthest possible track ( corner to corner ) 
+        # This needs to be corrected for outside of TPC
+        mp_length = pow( pow(zDetL*100,2)+pow(xDetL*100,2) + pow(yDetL*100,2),0.5)
+        #mp_length = pow( pow(zDetL,2)+pow(xDetL,2) + pow(yDetL,2),0.5)
+        top_pt = sp + mp_length*tdir_forward
+        bottom_pt = sp + mp_length*tdir_backward
+        # Calcuate brute forced cyl polygon 
+        pointslist = [label_val,top_pt, bottom_pt]
+        lp_list.append(pointslist)
+    return lp_list
+
+   
 
 
+'''
 ###########################################################################################
 def TrackExtend_sweep_holders(dataset,idx_holder, labels, extended_lines_list, float doca):
     cdef int cl,i,
@@ -185,7 +207,11 @@ def TrackExtend_sweep_prohibit_holders(dataset,idx_holder, labels, extended_line
 
 
 
-'''
+
+#############################################
+########## VERY OLD
+#############################################
+
 ###########################################################################################
 def TrackExtend_sweep(dataset, labels, extended_lines_list, doca, labelcase=-1):
 
