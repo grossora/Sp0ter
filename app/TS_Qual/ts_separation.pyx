@@ -8,19 +8,28 @@ import lib.utility.Geo_Utils.geo_funcs as gf
 # ----- list of function ------- #
 #------------------------------- #
 # --- exiting_tracks_fid 
+# ------> Identifies tracks that are esaping TPC boundaries 
 # --- line_consensus 
+# ------> Finds frac of points kept on a line from a 3dfit 
 # --- clusterspread_first 
+# ------> Finds and cuts on first pca moment 
 # --- clusterspreadR_first 
+# ------> Finds and cuts on nomralized first pca moment 
 # --- clusterspreadR
+# ------> Finds and cuts on nomralized  pca moments
 # --- cluster_lhull_cut 
+# ------> Finds and cuts based ratio of SA to Volume of hull
 # --- cluster_lhull_length_cut
+# ------> Finds and cuts based on length of a convext hull 
 # --- cluster_first_length 
+# ------> Finds and cuts based on length of a convext hull  and first pca
 # --- cluster_second_length
 # --- cluster_third_length
 # --- clusterlength_sep
+# ------> Finds and cuts based ratio of SA to Volume of hull
 # --- stray_charge_removal 
+# ------> Finds cluster that has no nearest neighbors 
 ##################################
-
 
 cdef float xDetL,yDetL,zDetL
 xDetL = det.GetX_Length()
@@ -35,7 +44,8 @@ def make_extend_lines(pt_a , pt_b):
     dirv = np.array([pt_b[0]-pt_a[0],pt_b[1]-pt_a[1],pt_b[2]-pt_a[2]])
     dirv_norm = dirv/np.linalg.norm(dirv)
     bdirv = -1.*dirv_norm
-    mp_length = pow( pow(zDetL*100,2)+pow(xDetL*100,2) + pow(yDetL*100,2),0.5)
+    mp_length = ( (zDetL*100)**2+(xDetL*100)**2 +(yDetL*100)**2)**0.5
+    #mp_length = pow( pow(zDetL*100,2)+pow(xDetL*100,2) + pow(yDetL*100,2),0.5)
     #mp_length = pow( pow(zDetL,2)+pow(xDetL,2) + pow(yDetL,2),0.5)
     sp = np.array(pt_a)
     # anchor to point A and extend
@@ -105,7 +115,8 @@ def line_consensus(dataset, datasetidx_holder, float dist_thresh,float min_obj_l
         x_max = max_bd[0]
         y_max = max_bd[1]
         z_max = max_bd[2]
-        clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
+        clust_length_sq = (x_max-x_min)**2 + (y_max-y_min)**2 + (z_max-z_min)**2
+        #clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
         if clust_length_sq<min_obj_length*min_obj_length:
             showeridx_holder.append(h)
             continue
@@ -271,15 +282,15 @@ def cluster_lhull_cut(dataset,datasetidx_holder,float lcmin_length):
         y_max = max_bd[1]
         z_max = max_bd[2]
 	
-        clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
+        clust_length_sq = (x_max-x_min)**2 + (y_max-y_min)**2 + (z_max-z_min)**2
+        #clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
         if clust_length_sq<lcmin_length*lcmin_length:
             shower_holder.append(a)
             continue
 
 	# This is the function we will cut on .... it's derived from single pi0 and SA
         #Test_cut_param = pow(clust_length,1.5)-3
-        Test_cut_param = pow(0.5*pow(clust_length_sq,0.5)-5,2)
-        #Test_cut_param = 0.25*pow(clust_length,2)+3*clust_length +9
+        Test_cut_param = pow(0.5*pow(clust_length_sq,0.5)-5,2)## MAGIC!!!!
 
         if hull.area>= Test_cut_param:
             shower_holder.append(a)
@@ -323,7 +334,8 @@ def cluster_lhull_length_cut(dataset,datasetidx_holder, float min_length):
         y_max = max_bd[1]
         z_max = max_bd[2]
 	
-        clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
+        clust_length_sq = (x_max-x_min)**2 + (y_max-y_min)**2 + (z_max-z_min)**2
+        #clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
 
         if clust_length_sq>= min_length*min_length:
             track_holder.append(a)
@@ -507,7 +519,9 @@ def cluster_third_length(dataset,datasetidx_holder, vari, clength, clustersize):
 
 #============================================================================
 
-def clusterlength_sep(dataset,datasetidx_holder, min_length):
+def clusterlength_sep(dataset,datasetidx_holder, float min_length):
+    cdef int  i 
+    cdef float min_length_sq,x_min,y_min,z_min, x_max,y_max,z_max,clust_length_sq
 
     track_holder = []
     shower_holder = []
@@ -539,7 +553,7 @@ def clusterlength_sep(dataset,datasetidx_holder, min_length):
         y_max = max_bd[1]
         z_max = max_bd[2]
 	
-        clust_length_sq = (x_max-x_min)*(x_max-x_min) + (y_max-y_min)*(y_max-y_min) + (z_max-z_min)*(z_max-z_min)
+        clust_length_sq = (x_max-x_min)**2 + (y_max-y_min)**2 + (z_max-z_min)**2
         if clust_length_sq<= min_length_sq:
             shower_holder.append(a)
         else :

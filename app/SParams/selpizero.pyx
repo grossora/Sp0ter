@@ -3,7 +3,30 @@ import math as math
 import lib.utility.Geo_Utils.axisfit as af
 from operator import itemgetter
 
-# Note... until we put in dataproducts showers are  shower = [ 3dxyz , 3ddir] 
+
+# Note... until we put in class objects,  dataproducts showers are  shower = [ 3dxyz , 3ddir] 
+
+##################################
+# ----- list of function ------- #
+#------------------------------- #
+# --- findvtx 
+# ------> input two showers return a 3d vertex point 
+# --- findRoughShowerStart
+# ------>  This algo looks for the shower conversion point. Takes in a vertex and a shower of interest  
+# --- findconversionlength
+# ------>  Finds the radiation length  
+# --- findIP
+# ------> find DOCA(Distance of Closest Approach) 
+# --- openingangle
+# ------>  Opening angle returns in rads 
+# --- totalcharge 
+# ------>  returns total charge for a cluster 
+##################################
+
+########################################
+# Untilites/functions useful for showers  
+########################################
+
 
 def findvtx(shrA,shrB):
     # Get the first Shower 
@@ -121,13 +144,8 @@ def totcharge(inup, indexset):
     #fenergy = 2.5847*pow(10,-8) *totq +0.017209
     return totq
 
-'''
-def comp_lifetime(charge,xpos):
-    time =  xpos*2.32/256. # This is hard coded guess
-    z = time/8.0
-    lifetime = pow(math.e,z)
-    return charge*lifetime
 
+# These are currently used in ana... but should never be used
 def corrected_energy(inup, indexset):
     tot =0.0
     for s in indexset:
@@ -138,7 +156,13 @@ def corrected_energy(inup, indexset):
     #fenergy = 2.5847*pow(10,-8) *totq +0.017209
     #return fenergy
     return tot
-       
+     
+def comp_lifetime(charge,xpos):
+    time =  xpos*2.32/256. # This is hard coded guess
+    z = time/8.0
+    lifetime = pow(math.e,z)
+    return charge*lifetime
+  
 
 def mass(ea,eb,angle):
     # make sure things are ok 
@@ -149,7 +173,6 @@ def mass(ea,eb,angle):
     mass = np.sqrt(2.* ea*eb*(1-math.cos(angle)))
     return mass
     
-'''
     
     
     

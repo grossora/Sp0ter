@@ -4,6 +4,58 @@ import lib.utility.Geo_Utils.axisfit as axfi
 import lib.SParams.selpizero as selpz
 
 
+def shower_pairs_ana_data(dataset, holder,labels, jcount, tpath , filename='dummy_data_ana.txt'):
+    # This will be a function to write the text file that will be used to look at pairs of showers
+    # note there are no cuts in here. Just filling out all the pairs
+    
+    # File will go in the out directory 
+    lookup = open('Out_text/{}.txt'.format(filename),'a+')
+
+    # number of shower objects 
+    N_Showers = len(holder) 
+    
+    if N_Showers<2: 
+        # Fill out the list and returno
+        fill = str('-9 ')*11 # This is the size to fill the frame
+        fillline = str(jcount)+ ' '+ str(N_Showers) + ' '+ fill.rsplit(' ',1)[0] + '\n'
+        lookup.writelines(fillline)
+        lookup.close()
+        return
+
+    # Now run over the pairs and fill  out the files 
+    for a in range(len(holder)):
+        shrA = axfi.weightshowerfit(dataset,holder[a],labels)
+        EA = selpz.corrected_energy(dataset,holder[a]) # This function is nont active at the moment
+        ChargeA = selpz.totcharge(dataset,holder[a])
+        N_sptA = len(holder[a])
+
+        for b in range(a+1,len(holder)):
+            shrB = axfi.weightshowerfit(dataset,holder[b],labels)
+            EB = selpz.corrected_energy(dataset,holder[b])
+            ChargeB = selpz.totcharge(dataset,holder[b])
+            N_sptB = len(holder[b])
+            vertex = selpz.findvtx(shrA,shrB)
+            IP = selpz.findIP(shrA,shrB)
+
+            SP_a = selpz.findRoughShowerStart(dataset,holder[a],vertex)
+            radL_a = selpz.findconversionlength(vertex,SP_a)
+            SP_b = selpz.findRoughShowerStart(dataset,holder[b],vertex)
+            radL_b = selpz.findconversionlength(vertex,SP_b)
+            angle = selpz.openingangle(shrA,shrB,vertex)
+
+            selection_line = str(N_sptA) + ' ' + str(ChargeA) + ' '+ str(N_sptB) + ' '+ str(ChargeB) + ' '+ str(vertex[0]) + ' '+ str(vertex[1]) + ' '+ str(vertex[2]) + ' '+ str(IP) + ' '+ str(radL_a) + ' '+ str(radL_b) + ' '+ str(angle)
+
+            fullrecoline = str(jcount)+ ' '+ str(N_Showers) +' '+ selection_line + '\n'
+            lookup.writelines(fullrecoline)
+    lookup.close()
+    return
+
+
+
+
+
+
+
 def cluster_pairs_data_textmaker(dataset, datasetidx_holder, ers_string, out_textfile):
     # Open the textfile 
     lookup = open('Out_text/{}.txt'.format(out_textfile),'a+')

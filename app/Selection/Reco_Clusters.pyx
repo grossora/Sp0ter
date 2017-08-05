@@ -29,7 +29,228 @@ from datetime import datetime
 # --- rebase_Full_reco 
 
 ##################################
+def Reco_FirstPass_data(dataset , jdir, int jcount , make_jsons=False):
+    cdef int mincluster, ts_fcl_minsize,min_kept_size, ts_scl_minsize
+    cdef float nn_dist, min_clust_length, gap_dist, k_radius, min_pdelta, AE, vari_0,ts_fcl_length, doca_sweep, lcmin, vari_1, ts_scl_length, cmin_length
 
+    # ``````````````````````
+    #        Params
+    # ``````````````````````
+    
+    #---MinCluster---
+    mincluster = 20
+
+    #---Birch-----
+    nn_dist = 3
+    #birch_leaf =  50
+    birch_leaf =  10000
+    #birch_mincluster = 5 # for data
+    birch_mincluster = 20 # for data
+    #birch_mincluster = 20
+
+
+    #---stitcher-----
+    ##min_clust_length = 10
+    edge_dist = 1
+    stitch_mincluster = 100
+
+
+    #---stitcher - epts -----
+    min_clust_length = 10
+    gap_dist = 120
+    k_radius = 10
+    min_pdelta = 5
+    AE = .08
+    stitchepts_mincluster = 100
+
+
+    #---cluster_first_length-----
+    vari_0 = 0.9985
+    #vari_0 = 0.998
+    ts_fcl_length = 20
+    ts_fcl_minsize = 10
+
+    #---doca sweep-----
+    #doca_sweep = 10
+    doca_sweep = 3
+
+    #---lc length cut-----
+    lcmin = 25
+
+    #---cluster_first_length-----
+    vari_1 = 0.998
+    ts_scl_length = 20
+    ts_scl_minsize = 10
+
+    #---cluster hlength cut-----
+    cmin_length =80 
+    #cmin_length =90 
+
+    #---Shower_Brute_nn_proh
+    snn_dist = 4
+    scrit_angle = 0.5
+
+    #---Shower_merge_trunk_v2
+    too_small = 300 
+    min_proj_impact_dist = 15
+    min_dot =  0.8
+    min_doca_dist = 20
+
+    # ``````````````````````
+    # ``````````````````````
+    ##################################################
+    start = datetime.now()
+    ##################################################
+    #===Run the Birch===
+    print 'start birch ' 
+    labels = pc.birch_clust(dataset,nn_dist,birch_leaf)
+    print 'length of lables{}'.format(len(labels)) 
+    datasetidx_holder = lh.label_to_idxholder(labels,birch_mincluster) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+    print 'length of ds holder {}'.format(len(datasetidx_holder)) 
+
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$ birch cluster' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+
+    if make_jsons:
+        dh.MakeJson_Objects_data(dataset,datasetidx_holder,labels,jdir,jcount,'Birch')
+
+    #===Run the Stitcher===
+    d, labels = st.Track_Stitcher_nn(dataset,datasetidx_holder,labels,edge_dist)
+    datasetidx_holder = lh.label_to_idxholder(labels,stitch_mincluster) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track NN  stitch  cluster' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+    if make_jsons:
+        dh.MakeJson_Objects_data(dataset,datasetidx_holder,labels,jdir,jcount,'Stitcher')
+
+
+
+    ##################################################
+    ##################################################
+    #===Run the epts to handle gaps===
+    ##################################################
+    ##################################################
+    d, labels = st.Track_Stitcher_epts(dataset,datasetidx_holder,labels,gap_dist,k_radius,min_pdelta,AE,min_clust_length )
+    datasetidx_holder = lh.label_to_idxholder(labels,stitchepts_mincluster) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+    if make_jsons:
+        dh.MakeJson_Objects_data(dataset,datasetidx_holder,labels,jdir,jcount,'Stitcherepts')
+
+    ##################################################
+    ##################################################
+    ##################################################
+
+
+        #===Run trackshower_length_sep===
+    # Now run T_S and see how things look... do we need a sweep... and if so what do we sweep on 
+
+
+    showeridx_holder , trackidx_holder = tss.clusterlength_sep(dataset,datasetidx_holder,cmin_length)
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track length _sep  ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+    #showeridx_holder , trackidx_holder = tss.clusterlength_sep(dataset,showeridx_holder,cmin_length)
+    #showeridx_holder , trackidx_holder = tss.cluster_first_length(dataset,datasetidx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
+    if make_jsons :
+        dh.MakeJson_Objects_data(dataset,showeridx_holder,labels,jdir,jcount,'shower_clsuter_fistL')
+        dh.MakeJson_Objects_data(dataset,trackidx_holder,labels,jdir,jcount,'track_clsuter_fistL')
+
+    
+    #===Run the sweep===
+    ell = mr.make_extend_lines_list(dataset,trackidx_holder,labels)
+    # Now do the volume sweep 
+    showeridx_holder, Strackidx_holder, labels = mr.TrackExtend_sweep_holders(dataset,showeridx_holder,labels,ell,doca_sweep)
+    trackidx_holder = trackidx_holder+Strackidx_holder
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track sweep   ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+
+    #===Run trackshower_sep===
+    #showeridx_holder , Strackidx_holder = tss.clusterlength_sep(dataset,showeridx_holder,cmin_length)
+    showeridx_holder , Strackidx_holder = tss.cluster_first_length(dataset,showeridx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
+    #showeridx_holder , Strackidx_holder = tss.cluster_first_length(dataset,datasetidx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
+    trackidx_holder = trackidx_holder+Strackidx_holder
+
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track first length   ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+
+    #===Run Trackshower to remove exiting objects
+    showeridx_holder , Strackidx_holder = tss.exiting_tracks_fid(dataset, showeridx_holder , fxlo=-100000, fxhi=-100000, fylo=1, fyhi=1, fzlo=0, fzhi=0 )
+    trackidx_holder = trackidx_holder+Strackidx_holder
+
+    #===Run Trackshower to remove exiting objects
+    strayidx_holder, showeridx_holder, rlabels = tss.stray_charge_removal(dataset,showeridx_holder,labels,1000000000 , 50)
+    trackidx_holder = trackidx_holder+strayidx_holder
+
+    
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track  exit and stray   ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+    #===Run Merging with shower clusters 
+    #labels = mr.wpca_merge(dataset,labels,showeridx_holder,0.35, 40)
+    #labels = wpca_merge(dataset,labels,showeridx_holder,crit_merge_angle, float wt_dist)
+
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,4) # was used
+    showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,snn_dist,scrit_angle)
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,20,0.5)
+
+
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'secondtoShowers', mc_dl)
+
+    showeridx_holder, labels = st.Shower_merge_wtpt_to_trunk_v2(dataset,showeridx_holder,labels,too_small, min_proj_impact_dist, min_dot,min_doca_dist)
+    #showeridx_holder, labels = stShower_merge_wtpt_to_trunk(dataset,showeridx_holder,labels, large_size_value,  min_proj_imact_dist, min_dot,min_doca_dist  ):
+
+
+    showerlabels = lh.unique_relabel(labels,showeridx_holder)
+    if make_jsons:
+        dh.MakeJson_Objects_data(dataset,showeridx_holder,labels,jdir,jcount,'shower_clsuters')
+        dh.MakeJson_Objects_data(dataset,trackidx_holder,labels,jdir,jcount,'track_clsuters')
+
+
+
+    return trackidx_holder , showeridx_holder , labels
+
+
+
+
+
+
+
+'''
+
+
+##################################
+# ----- list of function ------- #
+# --- Reco_FirstPass 
+
+# --- Reco_Showers_FirstStage_2 
+# --- Reco_Showers_FirstStage 
+# --- Reco_trackshower 
+# --- Reco_showerReCluster 
+# --- rebase_showers_reco 
+# --- rebase_Full_reco 
+
+##################################
 def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
     cdef int mincluster, ts_fcl_minsize,min_kept_size, ts_scl_minsize
     cdef float nn_dist, min_clust_length, gap_dist, k_radius, min_pdelta, AE, vari_0,ts_fcl_length, doca_sweep, lcmin, vari_1, ts_scl_length, cmin_length
@@ -45,7 +266,200 @@ def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
     nn_dist = 2
     #birch_leaf =  1000
     birch_leaf =  10000
-    birch_mincluster = 20
+    birch_mincluster = 5 # for data
+    #birch_mincluster = 20 # for data
+    #birch_mincluster = 20
+
+
+    #---stitcher-----
+    ##min_clust_length = 10
+    edge_dist = 3
+    stitch_mincluster = 10
+
+    #---cluster_first_length-----
+    vari_0 = 0.9985
+    #vari_0 = 0.998
+    ts_fcl_length = 20
+    ts_fcl_minsize = 10
+
+    #---doca sweep-----
+    doca_sweep = 10
+    #doca_sweep = 5
+
+    #---lc length cut-----
+    lcmin = 25
+
+    #---cluster_first_length-----
+    vari_1 = 0.998
+    ts_scl_length = 20
+    ts_scl_minsize = 10
+
+    #---cluster hlength cut-----
+    cmin_length =80 
+    #cmin_length =90 
+
+    #---Shower_Brute_nn_proh
+    snn_dist = 4
+    scrit_angle = 0.5
+
+    #---Shower_merge_trunk_v2
+    too_small = 300 
+    min_proj_impact_dist = 15
+    min_dot =  0.8
+    min_doca_dist = 20
+
+    # ``````````````````````
+    # ``````````````````````
+    ##################################################
+    start = datetime.now()
+    ##################################################
+    #===Run the walker===
+    print 'start birch ' 
+    labels = pc.birch_clust(dataset,nn_dist,birch_leaf)
+    print 'length of lables{}'.format(len(labels)) 
+    datasetidx_holder = lh.label_to_idxholder(labels,birch_mincluster) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+    print 'length of ds holder {}'.format(len(datasetidx_holder)) 
+
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$ birch cluster' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+
+    if make_jsons:
+        dh.MakeJson_Objects(dataset,datasetidx_holder,labels,jdir,jcount,'Birch', mc_dl)
+
+    #===Run the Stitcher===
+    d, labels = st.Track_Stitcher_nn(dataset,datasetidx_holder,labels,edge_dist)
+    datasetidx_holder = lh.label_to_idxholder(labels,stitch_mincluster) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track NN  stitch  cluster' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+    if make_jsons:
+        dh.MakeJson_Objects(dataset,datasetidx_holder,labels,jdir,jcount,'Stitcher', mc_dl)
+
+    #===Run trackshower_length_sep===
+    # Now run T_S and see how things look... do we need a sweep... and if so what do we sweep on 
+
+
+    showeridx_holder , trackidx_holder = tss.clusterlength_sep(dataset,datasetidx_holder,cmin_length)
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track length _sep  ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+    #showeridx_holder , trackidx_holder = tss.clusterlength_sep(dataset,showeridx_holder,cmin_length)
+    #showeridx_holder , trackidx_holder = tss.cluster_first_length(dataset,datasetidx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
+    if make_jsons:
+        dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'Shower_clsuter_fistL', mc_dl)
+        dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'Track_clsuter_fistL', mc_dl)
+
+    
+    #===Run the sweep===
+    ell = mr.make_extend_lines_list(dataset,trackidx_holder,labels)
+    # Now do the volume sweep 
+    showeridx_holder, Strackidx_holder, labels = mr.TrackExtend_sweep_holders(dataset,showeridx_holder,labels,ell,doca_sweep)
+    trackidx_holder = trackidx_holder+Strackidx_holder
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track sweep   ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+
+    #===Run trackshower_sep===
+    #showeridx_holder , Strackidx_holder = tss.clusterlength_sep(dataset,showeridx_holder,cmin_length)
+    showeridx_holder , Strackidx_holder = tss.cluster_first_length(dataset,showeridx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
+    #showeridx_holder , Strackidx_holder = tss.cluster_first_length(dataset,datasetidx_holder, vari_0,ts_fcl_length, ts_fcl_minsize)
+    trackidx_holder = trackidx_holder+Strackidx_holder
+
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track first length   ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+
+    #===Run Trackshower to remove exiting objects
+    showeridx_holder , Strackidx_holder = tss.exiting_tracks_fid(dataset, showeridx_holder , fxlo=-100000, fxhi=-100000, fylo=1, fyhi=1, fzlo=0, fzhi=0 )
+    trackidx_holder = trackidx_holder+Strackidx_holder
+
+    #===Run Trackshower to remove exiting objects
+    strayidx_holder, showeridx_holder, rlabels = tss.stray_charge_removal(dataset,showeridx_holder,labels,1000000000 , 50)
+    trackidx_holder = trackidx_holder+strayidx_holder
+
+    
+    ##################################################
+    end = datetime.now()
+    print '#$$$$$$$$$$$$$$$$$$$$$$$$$$$$track  exit and stray   ' 
+    print end-start
+    start = datetime.now()
+    ##################################################
+    #===Run Merging with shower clusters 
+    #labels = mr.wpca_merge(dataset,labels,showeridx_holder,0.35, 40)
+    #labels = wpca_merge(dataset,labels,showeridx_holder,crit_merge_angle, float wt_dist)
+   
+
+    # Remake the labels for the showers
+    # This is just to make things pretty
+
+
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'lastShowers', mc_dl)
+    #    dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'lastTracks', mc_dl)
+
+    # Now we are doing a reclustering
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,100,0.25)
+    #showeridx_holder = lh.label_to_idxholder(labels,10) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
+
+    #showeridx_holder, labels = st.Shower_Brute_nn(dataset,showeridx_holder,labels,4) # was used
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,4) # was used
+    showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,snn_dist,scrit_angle)
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,20,0.5)
+
+
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'secondtoShowers', mc_dl)
+
+    showeridx_holder, labels = st.Shower_merge_wtpt_to_trunk_v2(dataset,showeridx_holder,labels,too_small, min_proj_impact_dist, min_dot,min_doca_dist)
+    #showeridx_holder, labels = stShower_merge_wtpt_to_trunk(dataset,showeridx_holder,labels, large_size_value,  min_proj_imact_dist, min_dot,min_doca_dist  ):
+
+
+    showerlabels = lh.unique_relabel(labels,showeridx_holder)
+
+    #if make_jsons:
+    #    dh.MakeJson_Objects(dataset,showeridx_holder,showerlabels,jdir,jcount,'FinalShowers', mc_dl)
+    #    dh.MakeJson_Objects(dataset,trackidx_holder,labels,jdir,jcount,'FinalTracks', mc_dl)
+
+
+    return trackidx_holder , showeridx_holder , labels
+
+
+
+
+
+def Reco_FirstPass_old(dataset , mc_dl , jdir, int jcount , make_jsons=False):
+    cdef int mincluster, ts_fcl_minsize,min_kept_size, ts_scl_minsize
+    cdef float nn_dist, min_clust_length, gap_dist, k_radius, min_pdelta, AE, vari_0,ts_fcl_length, doca_sweep, lcmin, vari_1, ts_scl_length, cmin_length
+
+    # ``````````````````````
+    #        Params
+    # ``````````````````````
+    
+    #---MinCluster---
+    mincluster = 20
+
+    #---Birch-----
+    nn_dist = 2
+    #birch_leaf =  1000
+    birch_leaf =  10000
+    birch_mincluster = 5 # for data
+    #birch_mincluster = 20 # for data
     #birch_mincluster = 20
 
 
@@ -76,8 +490,15 @@ def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
     cmin_length =80 
     #cmin_length =90 
 
-    #---shower nn Brute merge-----
-    snn_dist = 2
+    #---Shower_Brute_nn_proh
+    snn_dist = 4
+    scrit_angle = 0.5
+
+    #---Shower_merge_trunk_v2
+    too_small = 300 
+    min_proj_impact_dist = 15
+    min_dot =  0.8
+    min_doca_dist = 20
 
     # ``````````````````````
     # ``````````````````````
@@ -185,18 +606,15 @@ def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
     #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,100,0.25)
     #showeridx_holder = lh.label_to_idxholder(labels,10) # Converts the labels list into a list of indexvalues for datasets  [ [ list of index], [list of indexes].. [] ]  
 
-    showeridx_holder, labels = st.Shower_Brute_nn(dataset,showeridx_holder,labels,4)
+    #showeridx_holder, labels = st.Shower_Brute_nn(dataset,showeridx_holder,labels,4) # was used
+    #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,4) # was used
+    showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,snn_dist,scrit_angle)
     #showeridx_holder, labels = st.Shower_Brute_nn_proh(dataset,showeridx_holder,labels,20,0.5)
 
 
     #if make_jsons:
     #    dh.MakeJson_Objects(dataset,showeridx_holder,labels,jdir,jcount,'secondtoShowers', mc_dl)
 
-    #Params 
-    too_small = 300 
-    min_proj_impact_dist = 15
-    min_dot =  0.8
-    min_doca_dist = 20
     showeridx_holder, labels = st.Shower_merge_wtpt_to_trunk_v2(dataset,showeridx_holder,labels,too_small, min_proj_impact_dist, min_dot,min_doca_dist)
     #showeridx_holder, labels = stShower_merge_wtpt_to_trunk(dataset,showeridx_holder,labels, large_size_value,  min_proj_imact_dist, min_dot,min_doca_dist  ):
 
@@ -209,6 +627,7 @@ def Reco_FirstPass(dataset , mc_dl , jdir, int jcount , make_jsons=False):
 
 
     return trackidx_holder , showeridx_holder , labels
+
 
 
 
@@ -657,7 +1076,6 @@ def rebase_showers_reco(f, dataset,showeridx_holder,track_ell,labels,mc_dl , jdi
 ######################    OLD DEPRICATED THINGS THAT WILL EVENTUALLY BE DELETED #############################
 #############################################################################################################
 #############################################################################################################
-'''
 
 #################################################################################
 def Reco_trackshower( dataset, mc_dl , jdir, int jcount , make_jsons=False,timer=False):
@@ -887,7 +1305,5 @@ def rebase_Full_reco(rdataset,mc_dl , jdir, jcount , make_jsons=True,timer=False
 
 
     return trackidx_holder , showeridx_holder , labels
-
-
 
 '''

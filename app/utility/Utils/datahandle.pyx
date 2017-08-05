@@ -89,15 +89,15 @@ def ConvertWCMC(infile):
     spta = np.asanyarray(sptarray)
     return spta
 
-def ConvertWC(infile):
+def ConvertWC(infile, float qthresh=0.0, wtype=0):
     #Bring in the file 
+    print ' convert wc'
     f = ROOT.TFile("{}".format(infile))
-    #t = f.Get("T_rec_charge")
     t = f.Get("T_rec_charge_blob")
     # Parse into an array 
     sptarray = []
     for entry in t:
-        if entry.q!=0.0 and entry.type==1: 
+        if entry.q>qthresh and entry.type==wtype: 
             sptarray.append([entry.x,entry.y,entry.z,entry.q])
     #make this an ndarray    
     spta = np.asanyarray(sptarray)
@@ -105,7 +105,46 @@ def ConvertWC(infile):
     cleanspta = Unique(spta)
     return cleanspta
 
- 
+########################################################
+############ CONVERT THINGS FOR DATA####################
+########################################################
+
+def ConvertWC_data(infile, float qthresh=0.0, treetype='T_rec_charge_blob' ):
+    #Bring in the file 
+    f = ROOT.TFile("{}".format(infile))
+    t = f.Get(treetype)
+    # Parse into an array 
+    sptarray = []
+    for entry in t:
+        if entry.q>qthresh: 
+            sptarray.append([entry.x,entry.y,entry.z,entry.q])
+    #make this an ndarray    
+    spta = np.asanyarray(sptarray)
+    #Make sure all points are unique
+    cleanspta = Unique(spta)
+    return cleanspta
+
+def ConvertWC_data_range(infile, float qthresh=0.0, nqthresh=600, treetype='T_rec_charge_blob',zlow=400, zhi=1200 ):
+    #Bring in the file 
+    f = ROOT.TFile("{}".format(infile))
+    t = f.Get(treetype)
+    # Parse into an array 
+    sptarray = []
+    for entry in t:
+        if entry.q>qthresh and entry.z>zlow and entry.z<zhi and entry.nq<nqthresh: 
+            sptarray.append([entry.x,entry.y,entry.z,entry.q])
+    #make this an ndarray    
+    spta = np.asanyarray(sptarray)
+    #Make sure all points are unique
+    cleanspta = Unique(spta)
+    return cleanspta
+
+########################################################
+########################################################
+########################################################
+
+
+#### DONT NEED 
 def ConvertWC_above_thresh(infile,float qt):
     #Bring in the file 
     f = ROOT.TFile("{}".format(infile))
@@ -117,9 +156,11 @@ def ConvertWC_above_thresh(infile,float qt):
             sptarray.append([entry.x,entry.y,entry.z,entry.q])
     #make this an ndarray    
     spta = np.asanyarray(sptarray)
+    #cleanspta = spta
     cleanspta = Unique(spta)
     return cleanspta
 
+#### DONT NEED 
 # This can eventully get removed when we have the toolkit inplace 
 # this just takes the truth info and applies some thresholding
 def ConvertWC_FauxTrue_above_thresh(infile,float qt):
@@ -279,6 +320,110 @@ def MakeJsonShower_Params(dataset,datasetidx_holder,labels,jpath,jcount,reco_lab
     lookup.writelines(l)
     lookup.close()
     return
+
+def MakeJsonShower_startpt(dataset,datasetidx_holder,labels,jpath,jcount,reco_label,mc_dl):
+    mlabels = []
+    if len(mc_dl)!=0:
+        mlabels = mc_dl[1]
+
+    ####### Make lines for each holder 
+    pt_line = [] # [ [pointx,y,z q]  , , , , , ]
+
+    # loop over the showers
+    for h in datasetidx_holder: 
+        points=[]
+        q_wts=[]
+        for p in h: 
+            if labels[p]==-1:
+                break
+            pt = [dataset[p][0],dataset[p][1],dataset[p][2]]
+            q_wt = [dataset[p][3],dataset[p][3],dataset[p][3]]
+            points.append(pt)
+            q_wts.append(q_wt)
+        #make there wpca    
+        pca = wp.WPCA(n_components=3)
+        pca.fit(points,weights=q_wts)
+        dxdydz= pca.components_
+        xyz = np.average(points, axis=0, weights=q_wts)
+
+        # Add a few of these lines to 
+        [pt_line.append(np.insert(xyz+a*dxdydz,3,5000.).tolist()  ) for a in range(100)]
+    #findRoughShowerStart(inup,shr_inup,vtx)
+
+    # put together everything    
+    holder_idx_lab = [item for sublist in datasetidx_holder for item in sublist]
+    data = [[dataset[i][0],dataset[i][1],dataset[i][2],(10*(labels[i] %20)/22.+2) *3600.,1] for i in holder_idx_lab if labels[i]!=-1]
+    [data.append([mc_dl[0][i][0],mc_dl[0][i][1],mc_dl[0][i][2],float(1) *5000., 1]) for i in xrange(len(mlabels))]
+    
+    [data.append(pl) for pl in pt_line]
+    output_x = ["%.1f" % data[k][0] for k in range(len(data))]
+    new_output_x = '[%s]' % ','.join(map(str,output_x))
+    output_y = ["%.1f" % data[k][1] for k in range(len(data))]
+    new_output_y = '[%s]' % ','.join(map(str,output_y))
+    output_z = ["%.1f" % data[k][2] for k in range(len(data))]
+    new_output_z = '[%s]' % ','.join(map(str,output_z))
+    output_q = ["%.1f" % data[k][3] for k in range(len(data))]
+    new_output_q = '[%s]' % ','.join(map(str,output_q))
+    output_nq = ["%.1f" % data[k][4] for k in range(len(data))]
+    new_output_nq = '[%s]' % ','.join(map(str,output_nq))
+    l = "{ \"x\":%s, \"y\":%s, \"z\":%s, \"q\":%s, \"nq\":%s, \"type\":\"truth\", \"runNo\":\"1\", \"subRunNo\":\"1\", \"eventNo\":\"1\", \"geom\":\"uboone\" }" % (new_output_x,new_output_y,new_output_z,new_output_q,new_output_nq)
+    # open a text file     
+    lookup = open('{}/{}-{}.json'.format(jpath,str(jcount),reco_label),'a+')
+    lookup.writelines(l)
+    lookup.close()
+    return
+
+###########################################################
+#### FOR DATA JSONS
+###########################################################
+
+def MakeJson_data_pts(dataset , str jpath,int jcount, reco_label):
+
+    data = [[dataset[i][0],dataset[i][1],dataset[i][2],dataset[i][3],1] for i in range(len(dataset))]
+
+    output_x = ["%.1f" % data[k][0] for k in range(len(data))]
+    new_output_x = '[%s]' % ','.join(map(str,output_x))
+    output_y = ["%.1f" % data[k][1] for k in range(len(data))]
+    new_output_y = '[%s]' % ','.join(map(str,output_y))
+    output_z = ["%.1f" % data[k][2] for k in range(len(data))]
+    new_output_z = '[%s]' % ','.join(map(str,output_z))
+    output_q = ["%.1f" % data[k][3] for k in range(len(data))]
+    new_output_q = '[%s]' % ','.join(map(str,output_q))
+    output_nq = ["%.1f" % data[k][4] for k in range(len(data))]
+    new_output_nq = '[%s]' % ','.join(map(str,output_nq))
+    l = "{ \"x\":%s, \"y\":%s, \"z\":%s, \"q\":%s, \"nq\":%s, \"type\":\"truth\", \"runNo\":\"1\", \"subRunNo\":\"1\", \"eventNo\":\"1\", \"geom\":\"uboone\" }" % (new_output_x,new_output_y,new_output_z,new_output_q,new_output_nq)
+    # open a text file     
+    lookup = open('{}/{}-{}.json'.format(jpath,str(jcount),reco_label),'a+')
+    lookup.writelines(l)
+    lookup.close()
+    return
+
+
+def MakeJson_Objects_data(dataset,datasetidx_holder,labels,jpath,jcount,reco_label):
+    #mlabels = []
+    #if len(mc_dl)!=0:
+    #    mlabels = mc_dl[1]
+    holder_idx_lab = [item for sublist in datasetidx_holder for item in sublist]
+    data = [[dataset[i][0],dataset[i][1],dataset[i][2],(10*(labels[i] %20)/22.+2) *3600.,1] for i in holder_idx_lab if labels[i]!=-1]
+    #[data.append([mc_dl[0][i][0],mc_dl[0][i][1],mc_dl[0][i][2],float(1) *5000., 1]) for i in xrange(len(mlabels))]
+
+    output_x = ["%.1f" % data[k][0] for k in range(len(data))]
+    new_output_x = '[%s]' % ','.join(map(str,output_x))
+    output_y = ["%.1f" % data[k][1] for k in range(len(data))]
+    new_output_y = '[%s]' % ','.join(map(str,output_y))
+    output_z = ["%.1f" % data[k][2] for k in range(len(data))]
+    new_output_z = '[%s]' % ','.join(map(str,output_z))
+    output_q = ["%.1f" % data[k][3] for k in range(len(data))]
+    new_output_q = '[%s]' % ','.join(map(str,output_q))
+    output_nq = ["%.1f" % data[k][4] for k in range(len(data))]
+    new_output_nq = '[%s]' % ','.join(map(str,output_nq))
+    l = "{ \"x\":%s, \"y\":%s, \"z\":%s, \"q\":%s, \"nq\":%s, \"type\":\"truth\", \"runNo\":\"1\", \"subRunNo\":\"1\", \"eventNo\":\"1\", \"geom\":\"uboone\" }" % (new_output_x,new_output_y,new_output_z,new_output_q,new_output_nq)
+    # open a text file     
+    lookup = open('{}/{}-{}.json'.format(jpath,str(jcount),reco_label),'a+')
+    lookup.writelines(l)
+    lookup.close()
+    return
+
 
 
 ###########################################################

@@ -10,25 +10,31 @@ import lib.utility.Geo_Utils.geo_funcs as gf
 from scipy.spatial import ConvexHull
 
 
-###########################################################################################
-#############     a few functions to use for the geometry ################################
-###########################################################################################
+##################################
+# ----- list of function ------- #
+#------------------------------- #
+# --- make_extend_lines_list 
+# ------> Forward projects points to outside the TPC for a given line 
+##################################
 
+########################################
+# Merging together showers/tracks  
+########################################
+
+
+###########################################################################################
+#############     a few functions to use for the geometry #################################
+#############                 local function              #################################
+###########################################################################################
 cdef float xDetL,yDetL,zDetL
 xDetL = det.GetX_Length()
 yDetL = det.GetY_Length()
 zDetL =  det.GetZ_Length()
 
 ###########################################################################################
-###########################################################################################
-###########################################################################################
 
-
-###########################################################################################
-#############    local function       #####################################################
-###########################################################################################
+#Groups together overlaping subgroups [ [1,2],[2,3],[4,5]] --> [ [1,2,3],[4,5] ] 
 def sublist_group(l):
-    #cdef int i , item, node , index
     taken=[False]*len(l)
     l=map(set,l)
 
@@ -47,62 +53,6 @@ def sublist_group(l):
     return ret
 ###########################################################################################
 ###########################################################################################
-###########################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def Shower_Forward_Sweep(dataset,idx_holder, labels):
-    #This will be slowish for now.  
-
-    # General idea : 
-    # Sort the showers from largest Nspts to smalles
-    # Calculate dist between avg of large and avg of small. 
-    # Start with largest as the forward project towards the smallest 
-    # Calculate the fraction of charge within a sphere of the forward projected point 
-    #if qsel/qsmal>some frac then merge, break the loop update the shower holder and labels 
-    
-    # for now do all the math here... we will move this to updating dataproucts later 
-    idx_q_av= [] 
-    for idx in len(idx_holder): 
-        # get the average point
-        points = [] 
-        tot_q = 0.
-        for pt in idx_holder[idx]:
-            points.append([dataset[pt][0],dataset[pt][1],dataset[pt][2]])
-            tot_q+= dataset[pt][3]
-        #Make vector 
-        temp_list = [idx,tot_q,np.average(np.array(pt),axis=0)]
-        idx_q_av.append(temp_list)
- 
-    idx_q_av = np.asarray(idx_q_av)
-    #Find the index of the max q
-
-    #Sort the list 
-    idx_q_av_sorted = sorted(idx_q_av,key=lambda row:row[1])[::-1]#This reverse sorted from highest charge
-    return True
-    # Now we have the sorted list. 
-#    for idx_ss in len(idx_q_av_sorted): 
-        #
-        #
-#            vtx_A =  np.asarray([dataset[vp_idx_a][0],dataset[vp_idx_a][1],dataset[vp_idx_a][2]])
-#            vtx_B =  np.asarray([dataset[vp_idx_b][0],dataset[vp_idx_b][1],dataset[vp_idx_b][2]])
-#            Length_between_vtx = pow( pow((vtx_A[0] - vtx_B[0]),2) + pow((vtx_A[1] - vtx_B[1]),2)+ pow((vtx_A[2] - vtx_B[2]),2) ,0.5) # This is slow
-
-        
- 
 def make_extend_lines_list(dataset , idxlist_for_tracks,labels):
     # loop over all the 'track' points 
     # take the pca for direction 
@@ -137,11 +87,6 @@ def make_extend_lines_list(dataset , idxlist_for_tracks,labels):
         lp_list.append(pointslist)
     return lp_list
 
-   
-
-
-'''
-###########################################################################################
 def TrackExtend_sweep_holders(dataset,idx_holder, labels, extended_lines_list, float doca):
     cdef int cl,i,
     cdef float doca_sq,pt_to_line_dist_sq
@@ -171,7 +116,54 @@ def TrackExtend_sweep_holders(dataset,idx_holder, labels, extended_lines_list, f
             unswept_holder.append(idx_holder[cl])
 
     return unswept_holder , swept_holder, labels
+   
+
+
+'''
+def Shower_Forward_Sweep(dataset,idx_holder, labels):
+    #This will be slowish for now.  
+
+    # General idea : 
+    # Sort the showers from largest Nspts to smalles
+    # Calculate dist between avg of large and avg of small. 
+    # Start with largest as the forward project towards the smallest 
+    # Calculate the fraction of charge within a sphere of the forward projected point 
+    #if qsel/qsmal>some frac then merge, break the loop update the shower holder and labels 
+    
+    # for now do all the math here... we will move this to updating dataproducts later 
+    idx_q_av= [] 
+    for idx in len(idx_holder): 
+        # get the average point
+        points = [] 
+        tot_q = 0.
+        for pt in idx_holder[idx]:
+            points.append([dataset[pt][0],dataset[pt][1],dataset[pt][2]])
+            tot_q+= dataset[pt][3]
+        #Make vector 
+        temp_list = [idx,tot_q,np.average(np.array(pt),axis=0)]
+        idx_q_av.append(temp_list)
  
+    idx_q_av = np.asarray(idx_q_av)
+    #Find the index of the max q
+
+    #Sort the list 
+    idx_q_av_sorted = sorted(idx_q_av,key=lambda row:row[1])[::-1]#This reverse sorted from highest charge
+    return True
+    # Now we have the sorted list. 
+#    for idx_ss in len(idx_q_av_sorted): 
+        #
+        #
+#            vtx_A =  np.asarray([dataset[vp_idx_a][0],dataset[vp_idx_a][1],dataset[vp_idx_a][2]])
+#            vtx_B =  np.asarray([dataset[vp_idx_b][0],dataset[vp_idx_b][1],dataset[vp_idx_b][2]])
+#            Length_between_vtx = pow( pow((vtx_A[0] - vtx_B[0]),2) + pow((vtx_A[1] - vtx_B[1]),2)+ pow((vtx_A[2] - vtx_B[2]),2) ,0.5) # This is slow
+
+
+
+
+
+
+###########################################################################################
+
 ###########################################################################################
 def TrackExtend_sweep_prohibit_holders(dataset,idx_holder, labels, extended_lines_list, float doca):
     cdef int cl,i,

@@ -1,26 +1,38 @@
 import numpy as np
 from operator import itemgetter # This should be removed... but it's not too heavy.
-from datetime import datetime
-import  lib.utility.Geo_Utils.geo_funcs as gf
+from datetime import datetime  # This is used for exploring timeing
+import  lib.utility.Geo_Utils.geo_funcs as gf # This is the geo functions
 
 
-####
+##################################
+# ----- list of function ------- #
+#------------------------------- #
+# --- birch_clust 
+# ------> Balanced Iterative Reducing and Clustering of hierarchies
+# --- kd_clust 
+# ------> KD_neighbors_Clustering 
+# --- Walker 
+# ------> Quasi-Brute-NN that optimizes based on track connectivity 
+# ------> Uses a sort in Z and cuts of the NN when Z is too large 
+##################################
+
+########################################
 # Clusters only return a labels list
-####
-
+# Labels list corresponds to indexed poisition 
+########################################
 
 ############################################################################
+########################################
 ##### Birch clustering 
+########################################
 ############################################################################
 from sklearn.cluster import Birch
 from time import time
+
 def birch_clust(inup, float radius, int max_value):
     t = time()
     dataset = inup[:,0:3] #remove the charge
-    #print 'for inup with dataset in birch'
-    #print len(dataset)
     indexlist = [-1 for x in xrange(len(inup))]
-
     try:
         birch_model = Birch(threshold=radius,branching_factor=max_value, n_clusters=None)
         birch_model.fit(dataset)
@@ -29,12 +41,8 @@ def birch_clust(inup, float radius, int max_value):
         print 'memory issue.... give up'
         labels = indexlist
     
-    #print ' length of the lables' 
-    #print  len(labels) 
-    #print ' here are the labels' 
-    #print  labels 
     n_clusters = np.unique(labels).size
-    #print("n_clusters : %d" % n_clusters)
+
     time_ = time() - t
     #print("Birch step took %0.2f seconds" % ((time() - t)))
     unclust = [ x for x in range(len(labels)) if labels[x]==-1]
@@ -42,9 +50,12 @@ def birch_clust(inup, float radius, int max_value):
 
 
 ############################################################################
+########################################
 ##### KDTREE_HACK 
+########################################
 ############################################################################
 from sklearn.neighbors import KDTree
+
 def kdtree_radius( inup, mincluster ):
 
     cdef float kradius 
@@ -53,30 +64,20 @@ def kdtree_radius( inup, mincluster ):
     #cdef int leafsize, label_counter 
     leafsize = 10
     kradius = 4.47
+
     indexlist = [-1 for x in xrange(len(inup))]
     unused =  [ [x[0],x[1],x[2]] for x in inup]
-    print len(unused)
-    print 'that is unuesd'
+
     start_kd = datetime.now()
     tree =  KDTree(unused, leaf_size= leafsize)
-    end_make_tree = datetime.now()
-    delta_RG_2 = end_make_tree-start_kd
-    start_kd2 = datetime.now()
-    print 'Tree is made in : '  , str(delta_RG_2.seconds)
-
-    print 'Tree is made'
     qtree = tree.query_radius(unused,r=kradius)
-    end_2 = datetime.now()
-    delta_RG_2 = end_2-start_kd2
-    print 'Tree is queried in : '  , str(delta_RG_2.seconds)
-    delta_total = end_2-start_kd
-    print 'Total time is : '  , str(delta_total.seconds)
+    #delta_total = end_2-start_kd
+    #print 'Total time is : '  , str(delta_total.seconds)
     start_group = datetime.now()
 
     #####################################
     # This will take  a long time if we want to loopo over all of the points
     #####################################
-
     lists =qtree 
     resultlist = []
     if len(lists) >= 1: # If your list is empty then you dont need to do anything.
@@ -94,9 +95,6 @@ def kdtree_radius( inup, mincluster ):
                 if not merged: #If there was no match then add the list to the resultset, so it doesnt get left out.
                     resultlist.append(l)
 
-    end_group = datetime.now()
-    delta_group = end_group-start_group
-    print 'regroup time...  : '  , str(delta_group.seconds)
 
     clusterlabel = 0
     # return result holder

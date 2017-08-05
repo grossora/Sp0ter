@@ -5,7 +5,6 @@ import wpca as wp
 from scipy.spatial import ConvexHull
 
 
-
 class Any_Object:
     def __init__(self,dataset,dataset_idx):
         self.dataset = dataset

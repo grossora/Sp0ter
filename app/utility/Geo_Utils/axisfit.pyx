@@ -17,7 +17,7 @@ def showerfit(inup,cl_idx_v):
     point = cl_pts.mean(axis=0)
     return point , vv[0] 
 
-def weightshowerfit(inup,cl_idx_v):
+def weightshowerfit_old(inup,cl_idx_v):
     # inup is the whole dataset, cl_idx is the cluster index position for points
     #make the dataset for the cluster into an np array 
     # Data is in the form [[x,y,z].[],...[xn,yn,zn]]
@@ -47,6 +47,36 @@ def weightshowerfit(inup,cl_idx_v):
     # This is the first PC and returned as a direction vector
     point = cl_pts.mean(axis=0)
     return point , vv[0] 
+
+
+def weightshowerfit(dataset,cl_idx_v,labels):
+    # inup is the whole dataset, cl_idx is the cluster index position for points
+    #make the dataset for the cluster into an np array 
+    # Data is in the form [[x,y,z].[],...[xn,yn,zn]]
+    cdef float maxcharge
+    cl_pts = []
+    # Find max charge for a pt 
+    points=[]
+    q_wts=[]
+
+    for p in cl_idx_v: 
+        if labels[p]==-1:
+            break
+        pt = [dataset[p][0],dataset[p][1],dataset[p][2]]
+        q_wt = [dataset[p][3],dataset[p][3],dataset[p][3]]
+        points.append(pt)
+        q_wts.append(q_wt)
+    
+    pca = wp.WPCA(n_components=3)
+    pca.fit(points,weights=q_wts)
+    dxdydz= pca.components_
+    xyz = np.average(points, axis=0, weights=q_wts)
+
+    return xyz , dxdydz[0]
+
+
+
+
 
 def PCAParamsR(inup,cl_idx_v,n_degree):
     # inup is the whole dataset, cl_idx is the cluster index position for points
